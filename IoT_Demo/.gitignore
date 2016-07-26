@@ -1,0 +1,8 @@
+*.o
+*.a
+.output
+*.config
+*.creator
+*.creator.user
+*.files
+*.includes
