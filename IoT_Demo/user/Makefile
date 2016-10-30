@@ -39,7 +39,9 @@ endif
 
 INCLUDES := $(INCLUDES) -I $(PDIR)include
 INCLUDES += -I ./
+INCLUDES += -I ./include 
 INCLUDES += -I ../../include/ets
+INCLUDES += -I ./fsm/src
 PDIR := ../$(PDIR)
 sinclude $(PDIR)Makefile
 

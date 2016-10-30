@@ -2,6 +2,7 @@
 #define __KEY_H__
 
 #include "gpio.h"
+#include "os_type.h"
 
 typedef void (* key_function)(void);
 
@@ -10,7 +11,7 @@ struct single_key_param {
     uint8 gpio_id;
     uint8 gpio_func;
     uint32 gpio_name;
-    os_timer_t key_5s;
+    os_timer_t key_3s;
     os_timer_t key_50ms;
     key_function short_press;
     key_function long_press;

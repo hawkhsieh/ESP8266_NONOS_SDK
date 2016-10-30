@@ -19,14 +19,22 @@
 #include "user_esp_platform.h"
 #include "user_iot_version.h"
 #include "upgrade.h"
+#include "smartconfig.h"
 
 #include "log.h"
+#include "boot.h"
+
+#define SMARTCONFIG
 #if ESP_PLATFORM
 
 #define ESP_DEBUG
 
 #ifdef ESP_DEBUG
-#define ESP_DBG os_printf
+
+#define ESP_DBG( fmt, args...) \
+    do {\
+        os_printf( "(%s:%d): " fmt, __FILE__ , __LINE__ ,##args);\
+    } while(0)
 #else
 #define ESP_DBG
 #endif
@@ -977,13 +985,93 @@ user_esp_platform_ap_change(void)
 }
 #endif
 
+
+#if 0   //日星與河嶽合併，不需要了
+void ICACHE_FLASH_ATTR
+sendMcuCmd( unsigned char cmdId, uint8 *data , int size ){
+
+    char uartcmd[16];
+    os_memset(uartcmd,0,sizeof(uartcmd));
+    uartcmd[0]=cmdId;
+    if (size > sizeof(uartcmd)-2) {
+        os_printf("over size");
+        return;
+    }
+    os_memcpy( &uartcmd[1] , data , size);
+    int i;
+    unsigned char sum=0;
+    for(i=0;i<sizeof(uartcmd)-1;i++){
+        sum += uartcmd[i];
+    }
+    uartcmd[sizeof(uartcmd)-1] = sum;
+    uart0_tx_buffer( uartcmd , 16 );
+}
+#endif
+
+
+void ICACHE_FLASH_ATTR
+smartconfig_done(sc_status status, void *pdata)
+{
+    static struct station_config keepConfig;
+    switch(status) {
+        case SC_STATUS_WAIT:
+            os_printf("SC_STATUS_WAIT\n");
+            break;
+        case SC_STATUS_FIND_CHANNEL:
+            os_printf("SC_STATUS_FIND_CHANNEL\n");
+            break;
+        case SC_STATUS_GETTING_SSID_PSWD:
+            os_printf("SC_STATUS_GETTING_SSID_PSWD\n");
+            sc_type *type = pdata;
+            if (*type == SC_TYPE_ESPTOUCH) {
+                os_printf("SC_TYPE:SC_TYPE_ESPTOUCH\n");
+            } else {
+                os_printf("SC_TYPE:SC_TYPE_AIRKISS\n");
+            }
+            break;
+        case SC_STATUS_LINK:
+            os_printf("SC_STATUS_LINK\n");
+            struct station_config *sta_conf = pdata;
+            keepConfig = *sta_conf;
+            wifi_station_set_config(sta_conf);
+            wifi_station_disconnect();
+            wifi_station_connect();
+            break;
+        case SC_STATUS_LINK_OVER:
+            os_printf("SC_STATUS_LINK_OVER\n");
+            if (pdata != NULL) {
+                //SC_TYPE_ESPTOUCH
+                uint8 phone_ip[4] = {0};
+
+                os_memcpy(phone_ip, (uint8*)pdata, 4);
+                os_printf("Phone ip: %d.%d.%d.%d\n",phone_ip[0],phone_ip[1],phone_ip[2],phone_ip[3]);
+            } else {
+                //SC_TYPE_AIRKISS - support airkiss v2.0
+            //  airkiss_start_discover();
+            }
+            wifi_set_opmode(STATIONAP_MODE);
+            smartconfig_stop();
+            rboot_set_current_rom(1);
+            system_restart();
+
+            break;
+    }
+
+}
+
+
 LOCAL bool ICACHE_FLASH_ATTR
 user_esp_platform_reset_mode(void)
 {
-    if (wifi_get_opmode() == STATION_MODE) {
-        wifi_set_opmode(STATIONAP_MODE);
-    }
+#ifdef SMARTCONFIG
+    wifi_set_opmode( STATION_MODE );
+#endif
 
+    //只要沒連上AP，就開啟smartconfig
+    smartconfig_set_type(SC_TYPE_ESPTOUCH);
+    smartconfig_start(smartconfig_done);
+
+#if 0 //user_esp_platform_ap_change call了會掛掉
 #if AP_CACHE
     /* delay 5s to change AP */
     os_timer_disarm(&client_timer);
@@ -991,6 +1079,7 @@ user_esp_platform_reset_mode(void)
     os_timer_arm(&client_timer, 5000, 0);
 
     return true;
+#endif
 #endif
 
     return false;
@@ -1064,7 +1153,7 @@ user_esp_platform_connect_cb(void *arg)
     ESP_DBG("user_esp_platform_connect_cb\n");
     if (wifi_get_opmode() ==  STATIONAP_MODE ) {
         os_printf("%s:%d\n",__FILE__,__LINE__);
-      //  wifi_set_opmode(STATION_MODE);
+        wifi_set_opmode(STATION_MODE);
     }
 
 #if (PLUG_DEVICE || SENSOR_DEVICE)
@@ -1201,6 +1290,8 @@ espconn_mdns_init(info);
 }
 #endif
 
+
+
 /******************************************************************************
  * FunctionName : user_esp_platform_check_ip
  * Description  : espconn struct parame init when get ip addr
@@ -1236,10 +1327,13 @@ user_esp_platform_check_ip(uint8 reset_flag)
             device_recon_count = 0;
         }
 
+#if 0
 #if (PLUG_DEVICE || LIGHT_DEVICE)
         os_timer_disarm(&beacon_timer);
         os_timer_setfn(&beacon_timer, (os_timer_func_t *)user_esp_platform_sent_beacon, &user_conn);
 #endif
+#endif
+
 
 #ifdef USE_DNS
         user_esp_platform_start_dns(&user_conn);
@@ -1259,19 +1353,91 @@ user_esp_platform_check_ip(uint8 reset_flag)
         espconn_regist_reconcb(&user_conn, user_esp_platform_recon_cb);
         user_esp_platform_connect(&user_conn);
 #endif
+
+        rboot_set_current_rom(1);
+        system_restart();
+
     } else {
+
         /* if there are wrong while connecting to some AP, then reset mode */
         if ((wifi_station_get_connect_status() == STATION_WRONG_PASSWORD ||
-                wifi_station_get_connect_status() == STATION_NO_AP_FOUND ||
-                wifi_station_get_connect_status() == STATION_CONNECT_FAIL)) {
+             wifi_station_get_connect_status() == STATION_IDLE ||
+             wifi_station_get_connect_status() == STATION_NO_AP_FOUND ||
+             wifi_station_get_connect_status() == STATION_CONNECT_FAIL )) {
             user_esp_platform_reset_mode();
-        } else {
-            os_timer_setfn(&client_timer, (os_timer_func_t *)user_esp_platform_check_ip, NULL);
-            os_timer_arm(&client_timer, 100, 0);
         }
+
+        os_timer_setfn(&client_timer, (os_timer_func_t *)user_esp_platform_check_ip, NULL);
+        os_timer_arm(&client_timer, 1000, 0);
+
     }
 }
 
+
+
+LOCAL void ICACHE_FLASH_ATTR
+user_wps_status_cb(int status)
+{
+    ESP_DBG("user_wps_status_cb\n");
+    switch (status) {
+        case WPS_CB_ST_SUCCESS:
+            wifi_wps_disable();
+            wifi_station_connect();
+            break;
+        case WPS_CB_ST_FAILED:
+        case WPS_CB_ST_TIMEOUT:
+            smartconfig_start(smartconfig_done);
+//            wifi_wps_start();
+            break;
+    }
+}
+
+LOCAL void ICACHE_FLASH_ATTR
+user_wps_key_short_press(void)
+{
+    ESP_DBG("user_wps_key_short_press\n");
+}
+
+LOCAL void ICACHE_FLASH_ATTR
+user_wps_key_long_press(void)
+{
+    smartconfig_stop();
+    ESP_DBG("user_wps_key_long_press");
+    wifi_wps_disable();
+    wifi_wps_enable(WPS_TYPE_PBC);
+    wifi_set_wps_cb(user_wps_status_cb);
+    wifi_wps_start();
+}
+
+
+LOCAL void ICACHE_FLASH_ATTR
+factory_reset(void)
+{
+    spi_flash_erase_sector( CONFIG_ADDR );
+    spi_flash_erase_sector( UARTKEY_ADDR );
+    system_restore();
+    system_restart();
+}
+
+LOCAL void ICACHE_FLASH_ATTR
+reset_short_press(void)
+{
+    ESP_DBG("Do factory reset\n");
+    factory_reset();
+}
+
+LOCAL void ICACHE_FLASH_ATTR
+reset_long_press(void)
+{
+    ESP_DBG("reset_long_press\n");
+}
+
+
+
+
+#define BTN_NUM            2
+LOCAL struct keys_param keys;
+LOCAL struct single_key_param *single_key[BTN_NUM];
 /******************************************************************************
  * FunctionName : user_esp_platform_init
  * Description  : device parame init based on espressif platform
@@ -1347,6 +1513,9 @@ user_esp_platform_init(void)
     }
 #endif
 
+#ifdef SMARTCONFIG  //關閉AP mode
+    wifi_set_opmode(STATION_MODE);
+#else
     if (esp_param.activeflag != 1) {
 #ifdef SOFTAP_ENCRYPT
         struct softap_config config;
@@ -1363,9 +1532,8 @@ user_esp_platform_init(void)
 
         wifi_softap_set_config(&config);
 #endif
-
-        wifi_set_opmode(STATIONAP_MODE);
     }
+#endif
 
 #if PLUG_DEVICE
     user_plug_init();
@@ -1375,11 +1543,32 @@ user_esp_platform_init(void)
     user_sensor_init(esp_param.activeflag);
 #endif
 
+    ESP_DBG("wifi_get_opmode=%d\n", wifi_get_opmode());
+
     if (wifi_get_opmode() != SOFTAP_MODE) {
         os_timer_disarm(&client_timer);
         os_timer_setfn(&client_timer, (os_timer_func_t *)user_esp_platform_check_ip, 1);
         os_timer_arm(&client_timer, 100, 0);
     }
+
+
+    single_key[0] = key_init_single(WPS_IO_NUM, WPS_IO_MUX, WPS_IO_FUNC,
+                                 user_wps_key_long_press, user_wps_key_short_press);
+
+
+    if (0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) {
+        ESP_DBG("RESET[%d]=0,Do self test\n",RESET_IO_NUM);
+        keys.key_num = 1;
+    }else{
+        single_key[1] = key_init_single(RESET_IO_NUM, RESET_IO_MUX, RESET_IO_FUNC,
+                                 reset_long_press, reset_short_press);
+        keys.key_num = BTN_NUM;
+    }
+
+    keys.single_key = single_key;
+
+    key_init(&keys);
+
 }
 
 #endif

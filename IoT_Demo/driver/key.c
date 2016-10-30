@@ -80,15 +80,15 @@ key_init(struct keys_param *keys)
 }
 
 /******************************************************************************
- * FunctionName : key_5s_cb
+ * FunctionName : key_3s_cb
  * Description  : long press 5s timer callback
  * Parameters   : single_key_param *single_key - single key parameter
  * Returns      : none
 *******************************************************************************/
 LOCAL void ICACHE_FLASH_ATTR
-key_5s_cb(struct single_key_param *single_key)
+key_3s_cb(struct single_key_param *single_key)
 {
-    os_timer_disarm(&single_key->key_5s);
+    os_timer_disarm(&single_key->key_3s);
 
     // low, then restart
     if (0 == GPIO_INPUT_GET(GPIO_ID_PIN(single_key->gpio_id))) {
@@ -111,7 +111,7 @@ key_50ms_cb(struct single_key_param *single_key)
 
     // high, then key is up
     if (1 == GPIO_INPUT_GET(GPIO_ID_PIN(single_key->gpio_id))) {
-        os_timer_disarm(&single_key->key_5s);
+        os_timer_disarm(&single_key->key_3s);
         single_key->key_level = 1;
         gpio_pin_intr_state_set(GPIO_ID_PIN(single_key->gpio_id), GPIO_PIN_INTR_NEGEDGE);
 
@@ -144,10 +144,10 @@ key_intr_handler(struct keys_param *keys)
             GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, gpio_status & BIT(keys->single_key[i]->gpio_id));
 
             if (keys->single_key[i]->key_level == 1) {
-                // 5s, restart & enter softap mode
-                os_timer_disarm(&keys->single_key[i]->key_5s);
-                os_timer_setfn(&keys->single_key[i]->key_5s, (os_timer_func_t *)key_5s_cb, keys->single_key[i]);
-                os_timer_arm(&keys->single_key[i]->key_5s, 5000, 0);
+                // 3s, restart & enter softap mode
+                os_timer_disarm(&keys->single_key[i]->key_3s);
+                os_timer_setfn(&keys->single_key[i]->key_3s, (os_timer_func_t *)key_3s_cb, keys->single_key[i]);
+                os_timer_arm(&keys->single_key[i]->key_3s, 3000, 0);
                 keys->single_key[i]->key_level = 0;
                 gpio_pin_intr_state_set(GPIO_ID_PIN(keys->single_key[i]->gpio_id), GPIO_PIN_INTR_POSEDGE);
             } else {

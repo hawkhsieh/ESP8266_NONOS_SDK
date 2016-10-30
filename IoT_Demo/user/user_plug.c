@@ -14,13 +14,12 @@
 #include "mem.h"
 #include "user_interface.h"
 
+#include "smartconfig.h"
 #include "user_plug.h"
 
 #if PLUG_DEVICE
 
 LOCAL struct plug_saved_param plug_param;
-LOCAL struct keys_param keys;
-LOCAL struct single_key_param *single_key[PLUG_KEY_NUM];
 LOCAL os_timer_t link_led_timer;
 LOCAL uint8 link_led_level = 0;
 
@@ -54,36 +53,6 @@ user_plug_set_status(bool status)
         plug_param.status = status;
         PLUG_STATUS_OUTPUT(PLUG_RELAY_LED_IO_NUM, status);
     }
-}
-
-/******************************************************************************
- * FunctionName : user_plug_short_press
- * Description  : key's short press function, needed to be installed
- * Parameters   : none
- * Returns      : none
-*******************************************************************************/
-LOCAL void ICACHE_FLASH_ATTR
-user_plug_short_press(void)
-{
-    user_plug_set_status((~plug_param.status) & 0x01);
-
-    spi_flash_erase_sector(PRIV_PARAM_START_SEC + PRIV_PARAM_SAVE);
-    spi_flash_write((PRIV_PARAM_START_SEC + PRIV_PARAM_SAVE) * SPI_FLASH_SEC_SIZE,
-        		(uint32 *)&plug_param, sizeof(struct plug_saved_param));
-}
-
-/******************************************************************************
- * FunctionName : user_plug_long_press
- * Description  : key's long press function, needed to be installed
- * Parameters   : none
- * Returns      : none
-*******************************************************************************/
-LOCAL void ICACHE_FLASH_ATTR
-user_plug_long_press(void)
-{
-	user_esp_platform_set_active(0);
-    system_restore();
-    system_restart();
 }
 
 LOCAL void ICACHE_FLASH_ATTR
@@ -135,13 +104,6 @@ user_plug_init(void)
 
     wifi_status_led_install(PLUG_WIFI_LED_IO_NUM, PLUG_WIFI_LED_IO_MUX, PLUG_WIFI_LED_IO_FUNC);
 
-    single_key[0] = key_init_single(PLUG_KEY_0_IO_NUM, PLUG_KEY_0_IO_MUX, PLUG_KEY_0_IO_FUNC,
-                                    user_plug_long_press, user_plug_short_press);
-
-    keys.key_num = PLUG_KEY_NUM;
-    keys.single_key = single_key;
-
-    key_init(&keys);
 
     spi_flash_read((PRIV_PARAM_START_SEC + PRIV_PARAM_SAVE) * SPI_FLASH_SEC_SIZE,
         		(uint32 *)&plug_param, sizeof(struct plug_saved_param));
@@ -153,7 +115,11 @@ user_plug_init(void)
         plug_param.status = 1;
     }
 
-    PLUG_STATUS_OUTPUT(PLUG_RELAY_LED_IO_NUM, plug_param.status);
+//    PLUG_STATUS_OUTPUT(PLUG_RELAY_LED_IO_NUM, plug_param.status);
+
+    PLUG_STATUS_OUTPUT(PLUG_WIFI_LED_IO_NUM ,0);
+    PLUG_STATUS_OUTPUT(PLUG_RELAY_LED_IO_NUM ,0);
+
 }
 #endif
 

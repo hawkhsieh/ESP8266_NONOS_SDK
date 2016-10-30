@@ -67,11 +67,12 @@ LINKFLAGS_eagle.app.v6 = \
 	-llwip	\
 	-lwpa	\
 	-lcrypto	\
-	-lmain	\
+	-lmain2	\
 	-ljson	\
 	-lupgrade\
 	-lssl	\
 	-lpwm	\
+	-lwps \
 	-lsmartconfig \
 	$(DEP_LIBS_eagle.app.v6)					\
 	-Wl,--end-group
@@ -94,7 +95,8 @@ DEPENDS_eagle.app.v6 = \
 #	-DTXRX_TXBUF_DEBUG
 #	-DTXRX_RXBUF_DEBUG
 #	-DWLAN_CONFIG_CCX
-CONFIGURATION_DEFINES =	-DICACHE_FLASH
+CONFIGURATION_DEFINES =	-DICACHE_FLASH -DPROD
+#CONFIGURATION_DEFINES =	-DICACHE_FLASH 
 
 DEFINES +=				\
 	$(UNIVERSAL_TARGET_DEFINES)	\
