@@ -21,9 +21,8 @@
 #endif
 
 #include "driver/uart.h"
-
-
 #include "log.h"
+#include "swt.h"
 
 void user_rf_pre_init(void)
 {

@@ -23,6 +23,7 @@
 
 #include "log.h"
 #include "boot.h"
+#include "swt.h"
 
 #define SMARTCONFIG
 #if ESP_PLATFORM
@@ -1432,7 +1433,35 @@ reset_long_press(void)
     ESP_DBG("reset_long_press\n");
 }
 
+LOCAL os_timer_t swt_timer;
 
+LOCAL void ICACHE_FLASH_ATTR
+tick_for_swt(void *timer_arg)
+{
+    SWTplatform_AddTick();
+    SWT_DispatchTask();
+    os_timer_arm(&swt_timer, SWT_TICK_RESOLUTION, 0);
+}
+
+LOCAL void ICACHE_FLASH_ATTR
+Init_SWT(void)
+{
+    os_timer_disarm(&swt_timer);
+    os_timer_setfn(&swt_timer, (os_timer_func_t *)tick_for_swt, 0);
+    os_timer_arm(&swt_timer, SWT_TICK_RESOLUTION, 0);
+}
+
+LOCAL void ICACHE_FLASH_ATTR
+gpio_blink(void *timer_arg)
+{
+    int gpio=(int)timer_arg;
+
+    if ( GPIO_INPUT_GET(gpio) ){
+        GPIO_OUTPUT_SET(gpio, 0);
+    }else{
+        GPIO_OUTPUT_SET(gpio, 1);
+    }
+}
 
 
 #define BTN_NUM            2
@@ -1568,6 +1597,18 @@ user_esp_platform_init(void)
     keys.single_key = single_key;
 
     key_init(&keys);
+
+    Init_SWT();
+    SWT_Init();
+    static SwtHandle h;
+    INIT_TASK(h);
+    SWT_AddTask(&h,gpio_blink,13,1000,1000,"1s");
+
+    static SwtHandle h2;
+    INIT_TASK(h2);
+
+    SWT_AddTask(&h2,gpio_blink,15,30,30,"100");
+
 
 }
 
