@@ -43,6 +43,7 @@ typedef  enum{
 
 typedef int32_t SwtHandle;
 #define INIT_TASK(h) h=(SwtHandle)-1;
+#define SWT_TASK_INITIALIZER -1
 
 typedef struct _Swt
 {
@@ -56,5 +57,18 @@ typedef struct _Swt
     SwtHandle *handle;					//儲存從外部傳入的task description，用來在單擊的時候自動將它初始化
 
 } Swt;
+
+
+int SWT_Init( void );
+SwtHandle SWT_AddTask(SwtHandle *handle,
+                 void (*pfunc)(void *param),
+                 void *Data,
+                 const int Delay,
+                 const int Period,
+                 const char *Name
+                 );
+
+uint8_t SWT_DeleteTask( SwtHandle swt_handle );
+
 
 #endif

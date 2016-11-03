@@ -10,7 +10,7 @@
 #define PRIV_PARAM_SAVE     0
 
 
-#if PROD
+#if defined(PROD)
 #define WPS_IO_MUX     PERIPHS_IO_MUX_MTCK_U
 #define WPS_IO_NUM     13
 #define WPS_IO_FUNC    FUNC_GPIO13

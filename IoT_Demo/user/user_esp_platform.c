@@ -24,6 +24,7 @@
 #include "log.h"
 #include "boot.h"
 #include "swt.h"
+#include "indicator.h"
 
 #define SMARTCONFIG
 #if ESP_PLATFORM
@@ -1451,16 +1452,13 @@ Init_SWT(void)
     os_timer_arm(&swt_timer, SWT_TICK_RESOLUTION, 0);
 }
 
-LOCAL void ICACHE_FLASH_ATTR
-gpio_blink(void *timer_arg)
-{
-    int gpio=(int)timer_arg;
+void write_gpio( int desc , char *buf , int buf_size ){
+    GPIO_OUTPUT_SET(desc,*buf);
+}
 
-    if ( GPIO_INPUT_GET(gpio) ){
-        GPIO_OUTPUT_SET(gpio, 0);
-    }else{
-        GPIO_OUTPUT_SET(gpio, 1);
-    }
+void read_gpio( int desc , char *buf , int buf_size ){
+    char status=GPIO_INPUT_GET(desc);
+    buf[0]=status;
 }
 
 
@@ -1599,17 +1597,8 @@ user_esp_platform_init(void)
     key_init(&keys);
 
     Init_SWT();
-    SWT_Init();
-    static SwtHandle h;
-    INIT_TASK(h);
-    SWT_AddTask(&h,gpio_blink,13,1000,1000,"1s");
 
-    static SwtHandle h2;
-    INIT_TASK(h2);
-
-    SWT_AddTask(&h2,gpio_blink,15,30,30,"100");
-
-
+    IDKT_Init( write_gpio , read_gpio );
 }
 
 #endif
