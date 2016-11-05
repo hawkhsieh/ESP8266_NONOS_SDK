@@ -53,7 +53,7 @@ typedef struct _Swt
     int32_t	Period;						//執行週期
     SWTFlag	Flag;						//參照SCH_FLAG_   開頭定義
     uint32_t	LossTick;					//以SWT_TICK_RESOLUTION為單位，看Loss了幾個SWT_TICK_RESOLUTION
-    char	Name[4];
+    char	Name[8];
     SwtHandle *handle;					//儲存從外部傳入的task description，用來在單擊的時候自動將它初始化
 
 } Swt;
