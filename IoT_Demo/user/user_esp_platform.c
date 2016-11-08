@@ -1051,6 +1051,7 @@ smartconfig_done(sc_status status, void *pdata)
                 //SC_TYPE_AIRKISS - support airkiss v2.0
             //  airkiss_start_discover();
             }
+
             wifi_set_opmode(STATIONAP_MODE);
             smartconfig_stop();
             rboot_set_current_rom(1);
@@ -1072,6 +1073,7 @@ user_esp_platform_reset_mode(void)
     //只要沒連上AP，就開啟smartconfig
     smartconfig_set_type(SC_TYPE_ESPTOUCH);
     smartconfig_start(smartconfig_done);
+    IDKT_SetState(IDKTstate_UPLINK_BLINK_ORANGE);
 
 #if 0 //user_esp_platform_ap_change call了會掛掉
 #if AP_CACHE
@@ -1263,6 +1265,8 @@ user_esp_platform_dns_check_cb(void *arg)
 LOCAL void ICACHE_FLASH_ATTR
 user_esp_platform_start_dns(struct espconn *pespconn)
 {
+    IDKT_SetState(IDKTstate_UPLINK_FAST_BLINK_ORANGE );
+
     esp_server_ip.addr = 0;
     espconn_gethostbyname(pespconn, ESP_DOMAIN, &esp_server_ip, user_esp_platform_dns_found);
 
@@ -1381,6 +1385,8 @@ LOCAL void ICACHE_FLASH_ATTR
 user_wps_status_cb(int status)
 {
     ESP_DBG("user_wps_status_cb\n");
+
+
     switch (status) {
         case WPS_CB_ST_SUCCESS:
             wifi_wps_disable();
@@ -1389,6 +1395,7 @@ user_wps_status_cb(int status)
         case WPS_CB_ST_FAILED:
         case WPS_CB_ST_TIMEOUT:
             smartconfig_start(smartconfig_done);
+            IDKT_SetState(IDKTstate_UPLINK_BLINK_ORANGE);
 //            wifi_wps_start();
             break;
     }
@@ -1403,12 +1410,14 @@ user_wps_key_short_press(void)
 LOCAL void ICACHE_FLASH_ATTR
 user_wps_key_long_press(void)
 {
+    IDKT_SetState(IDKTstate_WPSSTART_BLINK_BLUE);
     smartconfig_stop();
-    ESP_DBG("user_wps_key_long_press");
+    ESP_DBG("user_wps_key_long_press\n");
     wifi_wps_disable();
     wifi_wps_enable(WPS_TYPE_PBC);
     wifi_set_wps_cb(user_wps_status_cb);
     wifi_wps_start();
+
 }
 
 
@@ -1460,6 +1469,15 @@ void read_gpio( int desc , char *buf , int buf_size ){
     char status=GPIO_INPUT_GET(desc);
     buf[0]=status;
 }
+
+void putout( void )
+{
+    os_printf("putout all led\n");
+    GPIO_OUTPUT_SET( IDKTgpio_RED , 1 );
+    GPIO_OUTPUT_SET( IDKTgpio_BLUE , 1 );
+    GPIO_OUTPUT_SET( IDKTgpio_GREEN , 1 );
+}
+
 
 
 #define BTN_NUM            2
@@ -1578,14 +1596,18 @@ user_esp_platform_init(void)
         os_timer_arm(&client_timer, 100, 0);
     }
 
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTCK_U, FUNC_GPIO13);
+    GPIO_OUTPUT_SET( RESET_IO_NUM , 1 );
 
     single_key[0] = key_init_single(WPS_IO_NUM, WPS_IO_MUX, WPS_IO_FUNC,
                                  user_wps_key_long_press, user_wps_key_short_press);
 
 
-    if (0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) {
+    if ( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) {
         ESP_DBG("RESET[%d]=0,Do self test\n",RESET_IO_NUM);
+        while( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) ;
         keys.key_num = 1;
+        factory_reset();
     }else{
         single_key[1] = key_init_single(RESET_IO_NUM, RESET_IO_MUX, RESET_IO_FUNC,
                                  reset_long_press, reset_short_press);
@@ -1596,9 +1618,17 @@ user_esp_platform_init(void)
 
     key_init(&keys);
 
+
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO4_U, FUNC_GPIO4);
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0);
+
+    IDKT_Init( write_gpio , read_gpio , putout );
+
+    IDKT_SetState(IDKTstate_BOOTUP_SOLID_RED);
+
     Init_SWT();
 
-    IDKT_Init( write_gpio , read_gpio );
 }
 
 #endif

@@ -2,9 +2,28 @@
 #define _INDICATOR_H
 
 
+typedef enum{
+    IDKTled_Off=1,
+    IDKTled_On=0
+}IDKTled;
+
 typedef enum {
+    IDKTgpio_RED=4,
+    IDKTgpio_ORANGE=40,
+    IDKTgpio_BLUE=2,
+    IDKTgpio_GREEN=0,
+    IDKTgpio_EOF=-1
+
+}IDKTgpio;
+
+typedef enum {
+    IDKTstate_Init,//interal use
     IDKTstate_BOOTUP_SOLID_RED,//Bootup Process
     IDKTstate_UPLINK_BLINK_ORANGE,//Ready for uplink provisioning
+
+    IDKTstate_UPLINK_FAST_BLINK_ORANGE,//resolve DNS
+
+
     IDKTstate_WPSSTART_BLINK_BLUE,//WPS Processing
     IDKTstate_BINDING_BLINK_GREEN,//Uplink connected w/o binding
     IDKTstate_NORMAL_AUTO_SOLID_GREEN,//     Auto without Warnings
@@ -19,8 +38,9 @@ typedef enum {
 
 typedef void (*IDKT_IOWrite)( int desc , char *buf , int buf_size );
 typedef void (*IDKT_IORead)( int desc , char *buf , int buf_size );
+typedef void (*IDKT_IOPutout)( void );
 
 
-void IDKT_Init(IDKT_IOWrite wr , IDKT_IORead rd );
+void IDKT_Init(IDKT_IOWrite wr , IDKT_IORead rd , IDKT_IOPutout putout );
 
 #endif

@@ -291,6 +291,7 @@ void SWT_DispatchTask( void )
 
                 if ( (coTask->Flag & SWTFlag_DELETE) == 0 )	//如果中途刪除，就不執行這次工作
                 {
+
                     coTask->pfunc( swt_array[SchIndex].Data );			//執行工作
                 }
 
@@ -384,9 +385,9 @@ SwtHandle SWT_AddTask(SwtHandle *handle,
 
             swt_array[SchIndex].pfunc  = pfunc;
             swt_array[SchIndex].Data   = Data;
-            memcpy( (void *)swt_array[SchIndex].Name , (void *)Name , sizeof(swt_array[SchIndex].Name)-1 );
-            swt_array[SchIndex].Name[3]=0;
+            swt_array[SchIndex].Name   = (char*)Name;
             swt_array[SchIndex].handle = handle;
+            *handle=SchIndex;
             AmountOfTask++;
             break;
         }

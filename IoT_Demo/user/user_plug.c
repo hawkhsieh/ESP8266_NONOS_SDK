@@ -100,15 +100,15 @@ user_link_led_timer_done(void)
 void ICACHE_FLASH_ATTR
 user_plug_init(void)
 {
-    user_link_led_init();
+//    user_link_led_init();
 
-    wifi_status_led_install(PLUG_WIFI_LED_IO_NUM, PLUG_WIFI_LED_IO_MUX, PLUG_WIFI_LED_IO_FUNC);
+//    wifi_status_led_install(PLUG_WIFI_LED_IO_NUM, PLUG_WIFI_LED_IO_MUX, PLUG_WIFI_LED_IO_FUNC);
 
 
     spi_flash_read((PRIV_PARAM_START_SEC + PRIV_PARAM_SAVE) * SPI_FLASH_SEC_SIZE,
         		(uint32 *)&plug_param, sizeof(struct plug_saved_param));
 
-    PIN_FUNC_SELECT(PLUG_RELAY_LED_IO_MUX, PLUG_RELAY_LED_IO_FUNC);
+  //  PIN_FUNC_SELECT(PLUG_RELAY_LED_IO_MUX, PLUG_RELAY_LED_IO_FUNC);
 
     // no used SPI Flash
     if (plug_param.status == 0xff) {
@@ -116,9 +116,8 @@ user_plug_init(void)
     }
 
 //    PLUG_STATUS_OUTPUT(PLUG_RELAY_LED_IO_NUM, plug_param.status);
-
-    PLUG_STATUS_OUTPUT(PLUG_WIFI_LED_IO_NUM ,0);
-    PLUG_STATUS_OUTPUT(PLUG_RELAY_LED_IO_NUM ,0);
+//    PLUG_STATUS_OUTPUT(PLUG_WIFI_LED_IO_NUM ,0);
+//    PLUG_STATUS_OUTPUT(PLUG_RELAY_LED_IO_NUM ,0);
 
 }
 #endif
