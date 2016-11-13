@@ -1010,7 +1010,14 @@ sendMcuCmd( unsigned char cmdId, uint8 *data , int size ){
 }
 #endif
 
+typedef enum {
+    WifiState_SmartConfigIdle,
+    WifiState_SmartConfig,
+    WifiState_SmartConfigAP
 
+}WifiState;
+
+WifiState wifi_state;
 void ICACHE_FLASH_ATTR
 smartconfig_done(sc_status status, void *pdata)
 {
@@ -1038,6 +1045,7 @@ smartconfig_done(sc_status status, void *pdata)
             wifi_station_set_config(sta_conf);
             wifi_station_disconnect();
             wifi_station_connect();
+            wifi_state=WifiState_SmartConfigAP;
             break;
         case SC_STATUS_LINK_OVER:
             os_printf("SC_STATUS_LINK_OVER\n");
@@ -1066,15 +1074,31 @@ smartconfig_done(sc_status status, void *pdata)
 LOCAL bool ICACHE_FLASH_ATTR
 user_esp_platform_reset_mode(void)
 {
-#ifdef SMARTCONFIG
-    wifi_set_opmode( STATION_MODE );
-#endif
+    switch(wifi_state){
 
-    //只要沒連上AP，就開啟smartconfig
-    smartconfig_set_type(SC_TYPE_ESPTOUCH);
-    smartconfig_start(smartconfig_done);
-    IDKT_SetState(IDKTstate_UPLINK_BLINK_ORANGE);
+    case WifiState_SmartConfigIdle:
+        //只要沒連上AP，就開啟smartconfig
+        ESP_DBG("wifi_state=WifiState_SmartConfigIdle\n");
+        wifi_set_opmode( STATION_MODE );
+        smartconfig_set_type(SC_TYPE_ESPTOUCH);
+        smartconfig_start(smartconfig_done);
+        IDKT_SetState(IDKTstate_UPLINK_BLINK_ORANGE);
+        wifi_state=WifiState_SmartConfig;
+        break;
+    case WifiState_SmartConfig:
+        ESP_DBG("wifi_state=WifiState_SmartConfig\n");
 
+        break;
+    case WifiState_SmartConfigAP:
+    {
+        smartconfig_stop();
+        wifi_station_disconnect();
+        ESP_DBG("wifi_state=WifiState_SmartConfigAP,rwifi_station_disconnect\n");
+        wifi_state=WifiState_SmartConfigIdle;
+        break;
+
+    }
+    }
 #if 0 //user_esp_platform_ap_change call了會掛掉
 #if AP_CACHE
     /* delay 5s to change AP */
@@ -1309,6 +1333,7 @@ user_esp_platform_check_ip(uint8 reset_flag)
 {
     struct ip_info ipconfig;
 
+    ESP_DBG("reset_flag=%d\n",reset_flag);
     os_timer_disarm(&client_timer);
 
     wifi_get_ip_info(STATION_IF, &ipconfig);
