@@ -58,20 +58,20 @@ user_plug_set_status(bool status)
 LOCAL void ICACHE_FLASH_ATTR
 user_link_led_init(void)
 {
-    PIN_FUNC_SELECT(PLUG_LINK_LED_IO_MUX, PLUG_LINK_LED_IO_FUNC);
+  //  PIN_FUNC_SELECT(PLUG_LINK_LED_IO_MUX, PLUG_LINK_LED_IO_FUNC);
 }
 
 void ICACHE_FLASH_ATTR
 user_link_led_output(uint8 level)
 {
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(PLUG_LINK_LED_IO_NUM), level);
+//    GPIO_OUTPUT_SET(GPIO_ID_PIN(PLUG_LINK_LED_IO_NUM), level);
 }
 
 LOCAL void ICACHE_FLASH_ATTR
 user_link_led_timer_cb(void)
 {
-    link_led_level = (~link_led_level) & 0x01;
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(PLUG_LINK_LED_IO_NUM), link_led_level);
+//    link_led_level = (~link_led_level) & 0x01;
+//    GPIO_OUTPUT_SET(GPIO_ID_PIN(PLUG_LINK_LED_IO_NUM), link_led_level);
 }
 
 void ICACHE_FLASH_ATTR
@@ -81,14 +81,14 @@ user_link_led_timer_init(void)
     os_timer_setfn(&link_led_timer, (os_timer_func_t *)user_link_led_timer_cb, NULL);
     os_timer_arm(&link_led_timer, 50, 1);
     link_led_level = 0;
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(PLUG_LINK_LED_IO_NUM), link_led_level);
+ //   GPIO_OUTPUT_SET(GPIO_ID_PIN(PLUG_LINK_LED_IO_NUM), link_led_level);
 }
 
 void ICACHE_FLASH_ATTR
 user_link_led_timer_done(void)
 {
     os_timer_disarm(&link_led_timer);
-    GPIO_OUTPUT_SET(GPIO_ID_PIN(PLUG_LINK_LED_IO_NUM), 1);
+  //  GPIO_OUTPUT_SET(GPIO_ID_PIN(PLUG_LINK_LED_IO_NUM), 1);
 }
 
 /******************************************************************************

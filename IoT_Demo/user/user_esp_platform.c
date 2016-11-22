@@ -25,6 +25,7 @@
 #include "boot.h"
 #include "swt.h"
 #include "indicator.h"
+#include "gpio16.h"
 
 #define SMARTCONFIG
 #if ESP_PLATFORM
@@ -1648,11 +1649,25 @@ user_esp_platform_init(void)
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0);
 
+
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, FUNC_GPIO12);
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, FUNC_GPIO14);
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDO_U, FUNC_GPIO15);
+
+    GPIO_OUTPUT_SET(FUNC_GPIO12,0);
+    GPIO_OUTPUT_SET(FUNC_GPIO14,0);
+    GPIO_OUTPUT_SET(FUNC_GPIO15,0);
+
+    gpio16_output_conf();
+    gpio16_output_set(0);
+
+
     IDKT_Init( write_gpio , read_gpio , putout );
 
     IDKT_SetState(IDKTstate_BOOTUP_SOLID_RED);
 
     Init_SWT();
+
 
 }
 
