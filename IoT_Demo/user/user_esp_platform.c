@@ -1063,7 +1063,7 @@ smartconfig_done(sc_status status, void *pdata)
 
             wifi_set_opmode(STATIONAP_MODE);
             smartconfig_stop();
-            rboot_set_current_rom(1);
+            rboot_set_current_fw(FIRMWARE_RTOS);
             system_restart();
 
             break;
@@ -1334,7 +1334,14 @@ user_esp_platform_check_ip(uint8 reset_flag)
 {
     struct ip_info ipconfig;
 
-    ESP_DBG("reset_flag=%d\n",reset_flag);
+    char rma;
+    int last_rom;
+
+    rboot_get_rma(&rma,&last_rom);
+
+    ESP_DBG("ROM=%d,RMA=%c\n",last_rom,rma);
+
+    //ESP_DBG("reset_flag=%d\n",reset_flag);
     os_timer_disarm(&client_timer);
 
     wifi_get_ip_info(STATION_IF, &ipconfig);
@@ -1386,7 +1393,7 @@ user_esp_platform_check_ip(uint8 reset_flag)
         user_esp_platform_connect(&user_conn);
 #endif
 
-        rboot_set_current_rom(1);
+        rboot_set_current_fw(FIRMWARE_RTOS);
         system_restart();
 
     } else {
@@ -1523,22 +1530,43 @@ user_esp_platform_init(void)
 	IOT_VERSION_MINOR,IOT_VERSION_REVISION,device_type,UPGRADE_FALG);
 	os_printf("IOT VERSION = %s\n",iot_version);
 
-	system_param_load(ESP_PARAM_START_SEC, 0, &esp_param, sizeof(esp_param));
+
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTCK_U, FUNC_GPIO13);
+    GPIO_OUTPUT_SET( RESET_IO_NUM , 1 );
+
+    if ( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) {
+        ESP_DBG("RESET[%d]=0,Do self test\n",RESET_IO_NUM);
+        while( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) ;
+        rboot_set_rma('Y');
+        //factory_reset();
+    }else{
+
+        single_key[0] = key_init_single(WPS_IO_NUM, WPS_IO_MUX, WPS_IO_FUNC,
+                                     user_wps_key_long_press, user_wps_key_short_press);
+
+        single_key[1] = key_init_single(RESET_IO_NUM, RESET_IO_MUX, RESET_IO_FUNC,
+                                 reset_long_press, reset_short_press);
+        keys.key_num = BTN_NUM;
+    }
+
+    keys.single_key = single_key;
+
+    key_init(&keys);
 
 	struct rst_info *rtc_info = system_get_rst_info();
 
-	os_printf("reset reason: %x\n", rtc_info->reason);
+    ESP_DBG("reset reason: %x\n", rtc_info->reason);
 
 	if (rtc_info->reason == REASON_WDT_RST ||
 		rtc_info->reason == REASON_EXCEPTION_RST ||
 		rtc_info->reason == REASON_SOFT_WDT_RST) {
 		if (rtc_info->reason == REASON_EXCEPTION_RST) {
-			os_printf("Fatal exception (%d):\n", rtc_info->exccause);
+            ESP_DBG("Fatal exception (%d):\n", rtc_info->exccause);
 		}
-		os_printf("epc1=0x%08x, epc2=0x%08x, epc3=0x%08x, excvaddr=0x%08x, depc=0x%08x\n",
+        ESP_DBG("epc1=0x%08x, epc2=0x%08x, epc3=0x%08x, excvaddr=0x%08x, depc=0x%08x\n",
 				rtc_info->epc1, rtc_info->epc2, rtc_info->epc3, rtc_info->excvaddr, rtc_info->depc);
 	}
-
+#if 0
 	/***add by tzx for saving ip_info to avoid dhcp_client start****/
     struct dhcp_client_info dhcp_info;
     struct ip_info sta_info;
@@ -1557,7 +1585,7 @@ user_esp_platform_init(void)
 	}
     os_memset(&dhcp_info,0,sizeof(struct dhcp_client_info));
     system_rtc_mem_write(64,&dhcp_info,sizeof(struct rst_info));
-
+#endif
 
 #if AP_CACHE
     wifi_station_ap_number_set(AP_CACHE_NUMBER);
@@ -1587,7 +1615,7 @@ user_esp_platform_init(void)
 #ifdef SMARTCONFIG  //關閉AP mode
     wifi_set_opmode(STATION_MODE);
 #else
-    if (esp_param.activeflag != 1) {
+
 #ifdef SOFTAP_ENCRYPT
         struct softap_config config;
         char password[33];
@@ -1603,7 +1631,6 @@ user_esp_platform_init(void)
 
         wifi_softap_set_config(&config);
 #endif
-    }
 #endif
 
 #if PLUG_DEVICE
@@ -1611,7 +1638,7 @@ user_esp_platform_init(void)
 #elif LIGHT_DEVICE
     user_light_init();
 #elif SENSOR_DEVICE
-    user_sensor_init(esp_param.activeflag);
+   // user_sensor_init(esp_param.activeflag);
 #endif
 
     ESP_DBG("wifi_get_opmode=%d\n", wifi_get_opmode());
@@ -1621,29 +1648,6 @@ user_esp_platform_init(void)
         os_timer_setfn(&client_timer, (os_timer_func_t *)user_esp_platform_check_ip, 1);
         os_timer_arm(&client_timer, 100, 0);
     }
-
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTCK_U, FUNC_GPIO13);
-    GPIO_OUTPUT_SET( RESET_IO_NUM , 1 );
-
-    single_key[0] = key_init_single(WPS_IO_NUM, WPS_IO_MUX, WPS_IO_FUNC,
-                                 user_wps_key_long_press, user_wps_key_short_press);
-
-
-    if ( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) {
-        ESP_DBG("RESET[%d]=0,Do self test\n",RESET_IO_NUM);
-        while( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) ;
-        keys.key_num = 1;
-        factory_reset();
-    }else{
-        single_key[1] = key_init_single(RESET_IO_NUM, RESET_IO_MUX, RESET_IO_FUNC,
-                                 reset_long_press, reset_short_press);
-        keys.key_num = BTN_NUM;
-    }
-
-    keys.single_key = single_key;
-
-    key_init(&keys);
-
 
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO4_U, FUNC_GPIO4);
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
@@ -1667,7 +1671,6 @@ user_esp_platform_init(void)
     IDKT_SetState(IDKTstate_BOOTUP_SOLID_RED);
 
     Init_SWT();
-
 
 }
 
