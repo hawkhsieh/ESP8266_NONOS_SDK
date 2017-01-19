@@ -24,7 +24,7 @@ typedef enum {
     IDKTstate_UPLINK_FAST_BLINK_ORANGE,//resolve DNS
 
 
-    IDKTstate_WPSSTART_BLINK_BLUE,//WPS Processing
+    IDKTstate_WIFISTART_FBLINK_GREEN,//WPS Processing
     IDKTstate_BINDING_BLINK_GREEN,//Uplink connected w/o binding
     IDKTstate_NORMAL_AUTO_SOLID_GREEN,//     Auto without Warnings
     IDKTstate_WARNING_AUTO_SOLID_ORANGE,//     Auto with Warnings

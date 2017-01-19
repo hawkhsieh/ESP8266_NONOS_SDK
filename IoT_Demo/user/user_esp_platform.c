@@ -104,6 +104,12 @@ LOCAL uint8 iot_version[20] = {0};
 struct rst_info rtc_info;
 void user_esp_platform_check_ip(uint8 reset_flag);
 
+
+void system_restart_delay(){
+
+    os_delay_us(2000000);
+    system_restart();
+}
 /******************************************************************************
  * FunctionName : user_esp_platform_get_token
  * Description  : get the espressif's device token
@@ -874,7 +880,7 @@ user_esp_platform_recv_cb(void *arg, char *pusrdata, unsigned short length)
                 system_param_save_with_protect(ESP_PARAM_START_SEC, &esp_param, sizeof(esp_param));
                 user_esp_platform_sent(pespconn);
 		  if(LIGHT_DEVICE){
-                    system_restart();
+                    system_restart_delay();
                 }
             } else {
                 ESP_DBG("device activates failed.\n");
@@ -1031,6 +1037,7 @@ smartconfig_done(sc_status status, void *pdata)
             os_printf("SC_STATUS_FIND_CHANNEL\n");
             break;
         case SC_STATUS_GETTING_SSID_PSWD:
+            IDKT_SetState(IDKTstate_WIFISTART_FBLINK_GREEN);
             os_printf("SC_STATUS_GETTING_SSID_PSWD\n");
             sc_type *type = pdata;
             if (*type == SC_TYPE_ESPTOUCH) {
@@ -1064,7 +1071,7 @@ smartconfig_done(sc_status status, void *pdata)
             wifi_set_opmode(STATIONAP_MODE);
             smartconfig_stop();
             rboot_set_current_fw(FIRMWARE_RTOS);
-            system_restart();
+            system_restart_delay();
 
             break;
     }
@@ -1394,7 +1401,7 @@ user_esp_platform_check_ip(uint8 reset_flag)
 #endif
 
         rboot_set_current_fw(FIRMWARE_RTOS);
-        system_restart();
+        system_restart_delay();
 
     } else {
 
@@ -1417,20 +1424,21 @@ user_esp_platform_check_ip(uint8 reset_flag)
 LOCAL void ICACHE_FLASH_ATTR
 user_wps_status_cb(int status)
 {
-    ESP_DBG("user_wps_status_cb\n");
+    ESP_DBG("user_wps_status_cb(status:%d)\n",status);
 
 
     switch (status) {
-        case WPS_CB_ST_SUCCESS:
-            wifi_wps_disable();
-            wifi_station_connect();
-            break;
-        case WPS_CB_ST_FAILED:
-        case WPS_CB_ST_TIMEOUT:
-            smartconfig_start(smartconfig_done);
-            IDKT_SetState(IDKTstate_UPLINK_BLINK_ORANGE);
-//            wifi_wps_start();
-            break;
+    case WPS_CB_ST_SUCCESS:
+        wifi_wps_disable();
+        wifi_station_connect();
+        break;
+    case WPS_CB_ST_FAILED:
+    case WPS_CB_ST_TIMEOUT:
+    default:
+        smartconfig_start(smartconfig_done);
+        IDKT_SetState(IDKTstate_UPLINK_BLINK_ORANGE);
+        //            wifi_wps_start();
+        break;
     }
 }
 
@@ -1443,7 +1451,7 @@ user_wps_key_short_press(void)
 LOCAL void ICACHE_FLASH_ATTR
 user_wps_key_long_press(void)
 {
-    IDKT_SetState(IDKTstate_WPSSTART_BLINK_BLUE);
+    IDKT_SetState(IDKTstate_WIFISTART_FBLINK_GREEN);
     smartconfig_stop();
     ESP_DBG("user_wps_key_long_press\n");
     wifi_wps_disable();
@@ -1460,7 +1468,7 @@ factory_reset(void)
     spi_flash_erase_sector( CONFIG_ADDR );
     spi_flash_erase_sector( UARTKEY_ADDR );
     system_restore();
-    system_restart();
+    system_restart_delay();
 }
 
 LOCAL void ICACHE_FLASH_ATTR
@@ -1476,11 +1484,13 @@ reset_long_press(void)
     ESP_DBG("reset_long_press\n");
 }
 
+#ifdef SWTIMER
 LOCAL os_timer_t swt_timer;
 
 LOCAL void ICACHE_FLASH_ATTR
 tick_for_swt(void *timer_arg)
 {
+    ESP_DBG("receive tick\n");
     SWTplatform_AddTick();
     SWT_DispatchTask();
     os_timer_arm(&swt_timer, SWT_TICK_RESOLUTION, 0);
@@ -1493,7 +1503,46 @@ Init_SWT(void)
     os_timer_setfn(&swt_timer, (os_timer_func_t *)tick_for_swt, 0);
     os_timer_arm(&swt_timer, SWT_TICK_RESOLUTION, 0);
 }
+#else
 
+#include "os_type.h"
+
+#define swtTaskPrio    0
+#define swtQueueLen    3
+os_event_t    swtTaskQueue[swtQueueLen];
+
+LOCAL void ICACHE_FLASH_ATTR ///////
+swtTask(os_event_t *events)
+{
+    SWTplatform_AddTick();
+    SWT_DispatchTask();
+}
+
+void tick_for_swt(void *timer_arg)
+{
+//    ESP_DBG("receive tick\n");
+    system_os_post(swtTaskPrio, 0, 0);
+
+}
+
+typedef enum {
+    FRC1_SOURCE = 0,
+    NMI_SOURCE = 1,
+} FRC1_TIMER_SOURCE_TYPE;
+
+LOCAL void ICACHE_FLASH_ATTR
+Init_SWT(void)
+{
+#define AUTO_RELOAD 1
+    hw_timer_init(FRC1_SOURCE,AUTO_RELOAD);
+    hw_timer_set_func(tick_for_swt);
+    hw_timer_arm(SWT_TICK_RESOLUTION*1000);
+    system_os_task(swtTask, swtTaskPrio, swtTaskQueue, swtQueueLen);
+
+}
+
+
+#endif
 void write_gpio( int desc , char *buf , int buf_size ){
     GPIO_OUTPUT_SET(desc,*buf);
 }
@@ -1534,28 +1583,25 @@ user_esp_platform_init(void)
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTCK_U, FUNC_GPIO13);
     GPIO_OUTPUT_SET( RESET_IO_NUM , 1 );
 
+	struct rst_info *rtc_info = system_get_rst_info();
+
+    ESP_DBG("reset reason: %x\n", rtc_info->reason);
     if ( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) {
         ESP_DBG("RESET[%d]=0,Do self test\n",RESET_IO_NUM);
         while( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) ;
         rboot_set_rma('Y');
-        //factory_reset();
-    }else{
-
-        single_key[0] = key_init_single(WPS_IO_NUM, WPS_IO_MUX, WPS_IO_FUNC,
-                                     user_wps_key_long_press, user_wps_key_short_press);
-
-        single_key[1] = key_init_single(RESET_IO_NUM, RESET_IO_MUX, RESET_IO_FUNC,
-                                 reset_long_press, reset_short_press);
-        keys.key_num = BTN_NUM;
+        factory_reset();
     }
 
-    keys.single_key = single_key;
+    single_key[0] = key_init_single(WPS_IO_NUM, WPS_IO_MUX, WPS_IO_FUNC,
+                                    user_wps_key_long_press, user_wps_key_short_press);
 
+    single_key[1] = key_init_single(RESET_IO_NUM, RESET_IO_MUX, RESET_IO_FUNC,
+                                    reset_long_press, reset_short_press);
+    keys.key_num = BTN_NUM;
+    keys.single_key = single_key;
     key_init(&keys);
 
-	struct rst_info *rtc_info = system_get_rst_info();
-
-    ESP_DBG("reset reason: %x\n", rtc_info->reason);
 
 	if (rtc_info->reason == REASON_WDT_RST ||
 		rtc_info->reason == REASON_EXCEPTION_RST ||

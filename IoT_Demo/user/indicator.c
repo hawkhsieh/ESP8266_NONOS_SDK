@@ -194,10 +194,10 @@ setState( IDKTstate state ,int resetState ){
     }
     break;
 
-    case IDKTstate_WPSSTART_BLINK_BLUE:
+    case IDKTstate_WIFISTART_FBLINK_GREEN:
     {
         static SwtHandle handle=SWT_TASK_INITIALIZER;
-        controlBlinkTask(&handle,IDKTgpio_BLUE,resetState,"B-BLUE");
+        controlFastBlinkTask(&handle,IDKTgpio_GREEN,resetState,"FB-GREEN");
     }
     break;
 
