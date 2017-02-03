@@ -1567,7 +1567,7 @@ doRma(void *timer_arg)
     static int rotate;
     ESP_DBG("doRma rotate=%d\n",rotate);
 
-    if ( GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM)) == 0 ){
+    if ( GPIO_INPUT_GET(GPIO_ID_PIN(WPS_IO_NUM)) == 0 ){
         ESP_DBG("[RMA] factory reset\n");
         factory_reset();
     }
@@ -1672,16 +1672,17 @@ user_esp_platform_init(void)
             os_timer_arm(&client_timer, 100, 0);
         }
 
+
+        single_key[0] = key_init_single(WPS_IO_NUM, WPS_IO_MUX, WPS_IO_FUNC,
+                                        user_wps_key_long_press, user_wps_key_short_press);
+
+        single_key[1] = key_init_single(RESET_IO_NUM, RESET_IO_MUX, RESET_IO_FUNC,
+                                        reset_long_press, reset_short_press);
+        keys.key_num = BTN_NUM;
+        keys.single_key = single_key;
+        key_init(&keys);
     }
 
-    single_key[0] = key_init_single(WPS_IO_NUM, WPS_IO_MUX, WPS_IO_FUNC,
-                                    user_wps_key_long_press, user_wps_key_short_press);
-
-    single_key[1] = key_init_single(RESET_IO_NUM, RESET_IO_MUX, RESET_IO_FUNC,
-                                    reset_long_press, reset_short_press);
-    keys.key_num = BTN_NUM;
-    keys.single_key = single_key;
-    key_init(&keys);
 
 }
 
