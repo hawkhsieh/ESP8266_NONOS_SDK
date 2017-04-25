@@ -1652,9 +1652,9 @@ user_esp_platform_init(void)
 
     char rma='N';
 
-    if ( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) {
+    if ( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM)) && 0 == GPIO_INPUT_GET(GPIO_ID_PIN(WPS_IO_NUM)) ) {
         ESP_DBG("RESET[%d]=0,Do self test\n",RESET_IO_NUM);
-        while( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) ;
+//        while( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) ;
         rboot_set_rma('Y');
         static SwtHandle handlerma=SWT_TASK_INITIALIZER;
         SWT_AddTask(&handlerma,doRma,0,500,500,"rma");

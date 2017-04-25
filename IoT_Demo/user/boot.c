@@ -156,7 +156,7 @@ int ICACHE_FLASH_ATTR rboot_get_rma( char *isRma , int *last_rom ) {
 int ICACHE_FLASH_ATTR rboot_set_rma( char isRma ) {
 
     rboot_rtc_data rtc;
-    if (!rboot_get_rtc_data(&rtc)) {
+    if (rboot_get_rtc_data(&rtc)) {
         rtc.isRma=isRma;
         rboot_set_rtc_data(&rtc);
         return 0;
@@ -178,17 +178,10 @@ bool ICACHE_FLASH_ATTR rboot_set_current_fw( FIRMWARE fw ) {
     if (!rboot_set_rtc_data(&conf))
     {
         errf("write rtc failed\n");
-    }
-
-    rboot_rtc_data conf_chk;
-    rboot_get_rtc_data(&conf_chk);
-
-    if ( conf.last_rom == conf_chk.last_rom)
-        return true;
-    else{
-        errf("conf.last_rom=%d,conf_chk.last_rom=%d\n",conf.last_rom,conf_chk.last_rom);
         return false;
     }
+
+    return true;
 }
 
 // set current boot rom
