@@ -106,8 +106,9 @@ typedef struct {
     uint8 last_rom;         ///< The last (this) boot rom number
     uint8 temp_rom;         ///< The next boot rom number when next_mode set to MODE_TEMP_ROM
     uint8 chksum;           ///< Checksum of this structure this will be updated for you passed to the API
-    uint8 isRMA;
-    uint8 padd[2];
+    uint8 isRma;
+    uint8 isBoot;           ///If the application can run,fill this to 'Y' or leave it null.
+    uint8 padding[1];
 } rboot_rtc_data;
 
 #define CHKSUM_INIT 0xef
@@ -138,12 +139,13 @@ bool ICACHE_FLASH_ATTR rboot_set_rtc_data(rboot_rtc_data *rtc) {
     return system_rtc_mem_write(RBOOT_RTC_ADDR, rtc, sizeof(rboot_rtc_data));
 }
 
+#define RBOOT_RTC
 #ifdef RBOOT_RTC
 int ICACHE_FLASH_ATTR rboot_get_rma( char *isRma , int *last_rom ) {
 
     rboot_rtc_data rtc;
     if (rboot_get_rtc_data(&rtc)) {
-        *isRma = rtc.isRMA;
+        *isRma = rtc.isRma;
         *last_rom = rtc.last_rom;
         return 0;
     }
@@ -155,7 +157,7 @@ int ICACHE_FLASH_ATTR rboot_set_rma( char isRma ) {
 
     rboot_rtc_data rtc;
     if (!rboot_get_rtc_data(&rtc)) {
-        rtc.isRMA=isRma;
+        rtc.isRma=isRma;
         rboot_set_rtc_data(&rtc);
         return 0;
     }
@@ -170,10 +172,23 @@ bool ICACHE_FLASH_ATTR rboot_set_current_fw( FIRMWARE fw ) {
         conf.last_rom=0;
     }
     int next_rom=rboot_get_slot( conf.last_rom , fw );
-    infof("*** Runing at rom[%d] next is rom[%d] ***\n",conf.last_rom,next_rom);
+    infof("*** RTC2 Runing at rom[%d] next is rom[%d] ***\n",conf.last_rom,next_rom);
     conf.last_rom = next_rom;
 
-    return rboot_set_rtc_data(&conf);
+    if (!rboot_set_rtc_data(&conf))
+    {
+        errf("write rtc failed\n");
+    }
+
+    rboot_rtc_data conf_chk;
+    rboot_get_rtc_data(&conf_chk);
+
+    if ( conf.last_rom == conf_chk.last_rom)
+        return true;
+    else{
+        errf("conf.last_rom=%d,conf_chk.last_rom=%d\n",conf.last_rom,conf_chk.last_rom);
+        return false;
+    }
 }
 
 // set current boot rom

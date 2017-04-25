@@ -1269,6 +1269,7 @@ user_esp_platform_check_ip(uint8 reset_flag)
         }
     }
 }
+#include "boot.h"
 
 /******************************************************************************
  * FunctionName : user_esp_platform_init
@@ -1283,6 +1284,10 @@ user_esp_platform_init(void)
 	os_sprintf(iot_version,"%s%d.%d.%dt%d(%s)",VERSION_TYPE,IOT_VERSION_MAJOR,\
 	IOT_VERSION_MINOR,IOT_VERSION_REVISION,device_type,UPGRADE_FALG);
 	os_printf("IOT VERSION = %s\n",iot_version);
+
+
+    rboot_get_rma
+
 
 	system_param_load(ESP_PARAM_START_SEC, 0, &esp_param, sizeof(esp_param));
 
