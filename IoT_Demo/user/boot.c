@@ -123,6 +123,7 @@ uint8 ICACHE_FLASH_ATTR calc_chksum(uint8 *start, uint8 *end) {
 }
 
 bool ICACHE_FLASH_ATTR rboot_get_rtc_data(rboot_rtc_data *rtc) {
+
     if (system_rtc_mem_read(RBOOT_RTC_ADDR, rtc, sizeof(rboot_rtc_data))) {
         if (rtc->chksum == calc_chksum((uint8*)rtc, (uint8*)&rtc->chksum)){
             return true;
@@ -139,7 +140,7 @@ bool ICACHE_FLASH_ATTR rboot_set_rtc_data(rboot_rtc_data *rtc) {
     return system_rtc_mem_write(RBOOT_RTC_ADDR, rtc, sizeof(rboot_rtc_data));
 }
 
-#define RBOOT_RTC
+//#define RBOOT_RTC
 #ifdef RBOOT_RTC
 int ICACHE_FLASH_ATTR rboot_get_rma( char *isRma , int *last_rom ) {
 
@@ -158,6 +159,7 @@ int ICACHE_FLASH_ATTR rboot_set_rma( char isRma ) {
     rboot_rtc_data rtc;
     if (rboot_get_rtc_data(&rtc)) {
         rtc.isRma=isRma;
+  //      rtc.isBoot='Y';
         rboot_set_rtc_data(&rtc);
         return 0;
     }
@@ -174,6 +176,7 @@ bool ICACHE_FLASH_ATTR rboot_set_current_fw( FIRMWARE fw ) {
     int next_rom=rboot_get_slot( conf.last_rom , fw );
     infof("*** RTC2 Runing at rom[%d] next is rom[%d] ***\n",conf.last_rom,next_rom);
     conf.last_rom = next_rom;
+//    conf.isBoot = 'Y';
 
     if (!rboot_set_rtc_data(&conf))
     {

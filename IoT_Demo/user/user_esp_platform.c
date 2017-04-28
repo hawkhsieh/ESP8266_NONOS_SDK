@@ -1471,9 +1471,52 @@ factory_reset(void)
     system_restart_delay();
 }
 
+
+LOCAL void ICACHE_FLASH_ATTR
+doRma(void *timer_arg)
+{
+    static int rotate;
+    ESP_DBG("doRma rotate=%d\n",rotate);
+
+    if ( GPIO_INPUT_GET(GPIO_ID_PIN(WPS_IO_NUM)) == 0 ){
+        ESP_DBG("[RMA] factory reset\n");
+        factory_reset();
+    }
+
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, FUNC_GPIO12);
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, FUNC_GPIO14);
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDO_U, FUNC_GPIO15);
+
+    switch(rotate){
+    case 1:GPIO_OUTPUT_SET( IDKTgpio_RED , 0 ); break;
+    case 2:GPIO_OUTPUT_SET( IDKTgpio_RED , 1 ); break;
+    case 3:GPIO_OUTPUT_SET( IDKTgpio_GREEN , 0 ); break;
+    case 4:GPIO_OUTPUT_SET( IDKTgpio_GREEN , 1 );break;
+    case 5:GPIO_OUTPUT_SET( IDKTgpio_BLUE , 0 );break;
+    case 6:GPIO_OUTPUT_SET( IDKTgpio_BLUE , 1 );break;
+    case 7:GPIO_OUTPUT_SET( GPIO_ID_PIN(12),1); break;
+    case 8:GPIO_OUTPUT_SET( GPIO_ID_PIN(12),0 );break;
+    case 9: GPIO_OUTPUT_SET(GPIO_ID_PIN(14),1); break;
+    case 10:GPIO_OUTPUT_SET(GPIO_ID_PIN(14),0 );break;
+    case 11:GPIO_OUTPUT_SET(GPIO_ID_PIN(15),1); break;
+    case 12:GPIO_OUTPUT_SET(GPIO_ID_PIN(15),0 );break;
+    case 13:gpio16_output_set(1); break;
+    case 14:gpio16_output_set(0);rotate=0 ;break;
+
+    }
+
+    rotate++;
+}
+
 LOCAL void ICACHE_FLASH_ATTR
 reset_short_press(void)
 {
+    static SwtHandle handlerma;
+    if ( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(WPS_IO_NUM)) ) {
+        rboot_set_rma('Y');
+        ESP_DBG("Enter RMA,Do self test\n",RESET_IO_NUM);
+        SWT_AddTask(&handlerma,doRma,0,500,500,"rma");
+    }
     ESP_DBG("Do factory reset\n");
     factory_reset();
 }
@@ -1561,41 +1604,6 @@ void putout( void )
 }
 
 
-LOCAL void ICACHE_FLASH_ATTR
-doRma(void *timer_arg)
-{
-    static int rotate;
-    ESP_DBG("doRma rotate=%d\n",rotate);
-
-    if ( GPIO_INPUT_GET(GPIO_ID_PIN(WPS_IO_NUM)) == 0 ){
-        ESP_DBG("[RMA] factory reset\n");
-        factory_reset();
-    }
-
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, FUNC_GPIO12);
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, FUNC_GPIO14);
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDO_U, FUNC_GPIO15);
-
-    switch(rotate){
-    case 1:GPIO_OUTPUT_SET( IDKTgpio_RED , 0 ); break;
-    case 2:GPIO_OUTPUT_SET( IDKTgpio_RED , 1 ); break;
-    case 3:GPIO_OUTPUT_SET( IDKTgpio_GREEN , 0 ); break;
-    case 4:GPIO_OUTPUT_SET( IDKTgpio_GREEN , 1 );break;
-    case 5:GPIO_OUTPUT_SET( IDKTgpio_BLUE , 0 );break;
-    case 6:GPIO_OUTPUT_SET( IDKTgpio_BLUE , 1 );break;
-    case 7:GPIO_OUTPUT_SET( GPIO_ID_PIN(12),1); break;
-    case 8:GPIO_OUTPUT_SET( GPIO_ID_PIN(12),0 );break;
-    case 9: GPIO_OUTPUT_SET(GPIO_ID_PIN(14),1); break;
-    case 10:GPIO_OUTPUT_SET(GPIO_ID_PIN(14),0 );break;
-    case 11:GPIO_OUTPUT_SET(GPIO_ID_PIN(15),1); break;
-    case 12:GPIO_OUTPUT_SET(GPIO_ID_PIN(15),0 );break;
-    case 13:gpio16_output_set(1); break;
-    case 14:gpio16_output_set(0);rotate=0 ;break;
-
-    }
-
-    rotate++;
-}
 
 #define BTN_NUM            2
 LOCAL struct keys_param keys;
@@ -1650,38 +1658,28 @@ user_esp_platform_init(void)
     Init_SWT();
     IDKT_Init( write_gpio , read_gpio , putout );
 
-    char rma='N';
+    IDKT_SetState(IDKTstate_BOOTUP_SOLID_RED);
 
-    if ( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM)) && 0 == GPIO_INPUT_GET(GPIO_ID_PIN(WPS_IO_NUM)) ) {
-        ESP_DBG("RESET[%d]=0,Do self test\n",RESET_IO_NUM);
-//        while( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(RESET_IO_NUM))) ;
-        rboot_set_rma('Y');
-        static SwtHandle handlerma=SWT_TASK_INITIALIZER;
-        SWT_AddTask(&handlerma,doRma,0,500,500,"rma");
-        rma='Y';
-    }else{
-        IDKT_SetState(IDKTstate_BOOTUP_SOLID_RED);
+    wifi_set_opmode(STATION_MODE);
 
-        wifi_set_opmode(STATION_MODE);
+    ESP_DBG("wifi_get_opmode=%d\n", wifi_get_opmode());
 
-        ESP_DBG("wifi_get_opmode=%d\n", wifi_get_opmode());
-
-        if (wifi_get_opmode() != SOFTAP_MODE) {
-            os_timer_disarm(&client_timer);
-            os_timer_setfn(&client_timer, (os_timer_func_t *)user_esp_platform_check_ip, 1);
-            os_timer_arm(&client_timer, 100, 0);
-        }
-
-
-        single_key[0] = key_init_single(WPS_IO_NUM, WPS_IO_MUX, WPS_IO_FUNC,
-                                        user_wps_key_long_press, user_wps_key_short_press);
-
-        single_key[1] = key_init_single(RESET_IO_NUM, RESET_IO_MUX, RESET_IO_FUNC,
-                                        reset_long_press, reset_short_press);
-        keys.key_num = BTN_NUM;
-        keys.single_key = single_key;
-        key_init(&keys);
+    if (wifi_get_opmode() != SOFTAP_MODE) {
+        os_timer_disarm(&client_timer);
+        os_timer_setfn(&client_timer, (os_timer_func_t *)user_esp_platform_check_ip, 1);
+        os_timer_arm(&client_timer, 100, 0);
     }
+
+
+    single_key[0] = key_init_single(WPS_IO_NUM, WPS_IO_MUX, WPS_IO_FUNC,
+                                    user_wps_key_long_press, user_wps_key_short_press);
+
+    single_key[1] = key_init_single(RESET_IO_NUM, RESET_IO_MUX, RESET_IO_FUNC,
+                                    reset_long_press, reset_short_press);
+    keys.key_num = BTN_NUM;
+    keys.single_key = single_key;
+    key_init(&keys);
+
 
 
 }
