@@ -1017,6 +1017,7 @@ sendMcuCmd( unsigned char cmdId, uint8 *data , int size ){
 }
 #endif
 
+
 typedef enum {
     WifiState_SmartConfigIdle,
     WifiState_SmartConfig,
@@ -1025,6 +1026,26 @@ typedef enum {
 }WifiState;
 
 WifiState wifi_state;
+
+
+void ICACHE_FLASH_ATTR
+smartconfig_done_rma(sc_status status, void *pdata)
+{
+    static struct station_config keepConfig;
+    switch(status) {
+    case SC_STATUS_LINK:
+        os_printf("SC_STATUS_LINK\n");
+        struct station_config *sta_conf = pdata;
+        keepConfig = *sta_conf;
+        wifi_station_set_config(sta_conf);
+        wifi_station_disconnect();
+        wifi_station_connect();
+        wifi_state=WifiState_SmartConfigAP;
+        break;
+    }
+}
+
+
 void ICACHE_FLASH_ATTR
 smartconfig_done(sc_status status, void *pdata)
 {
@@ -1475,12 +1496,18 @@ factory_reset(void)
 LOCAL void ICACHE_FLASH_ATTR
 doRma(void *timer_arg)
 {
+    IDKT_SetState(IDKTstate_MANUAL_ALLOFF);
+
     static int rotate;
     ESP_DBG("doRma rotate=%d\n",rotate);
 
     if ( GPIO_INPUT_GET(GPIO_ID_PIN(WPS_IO_NUM)) == 0 ){
-        ESP_DBG("[RMA] factory reset\n");
-        factory_reset();
+
+        rboot_set_rma('O');
+        rboot_set_current_fw(FIRMWARE_RTOS);
+        system_restart_delay();
+     //   ESP_DBG("[RMA] factory reset\n");  //Reset不就不能ota了嗎
+    //    factory_reset();
     }
 
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, FUNC_GPIO12);
@@ -1516,7 +1543,9 @@ reset_short_press(void)
         rboot_set_rma('Y');
         ESP_DBG("Enter RMA,Do self test\n",RESET_IO_NUM);
         SWT_AddTask(&handlerma,doRma,0,500,500,"rma");
+        while(0 == GPIO_INPUT_GET(GPIO_ID_PIN(WPS_IO_NUM)));
     }
+
     ESP_DBG("Do factory reset\n");
     factory_reset();
 }
@@ -1656,8 +1685,23 @@ user_esp_platform_init(void)
     gpio16_output_set(0);
 
     Init_SWT();
-    IDKT_Init( write_gpio , read_gpio , putout );
+    char rma;
+    int rom;
+    rboot_get_rma(&rma,&rom);
+    if ( rma == 'Y' ){
+        rboot_set_rma('N');
+        os_printf("do test\n");
+        static SwtHandle handlerma;
+        ESP_DBG("Enter RMA,Do self test\n",RESET_IO_NUM);
+        SWT_AddTask(&handlerma,doRma,0,500,500,"rma");
 
+        //之後改成外包測試這邊要去掉，由外包來做上網動作
+        wifi_set_opmode(STATION_MODE);
+        smartconfig_start(smartconfig_done_rma);
+        return;
+    }
+
+    IDKT_Init( write_gpio , read_gpio , putout );
     IDKT_SetState(IDKTstate_BOOTUP_SOLID_RED);
 
     wifi_set_opmode(STATION_MODE);
