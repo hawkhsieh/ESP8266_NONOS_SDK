@@ -24,6 +24,8 @@
 #include "log.h"
 #include "swt.h"
 
+#include "rboot-bigflash.c"
+
 void user_rf_pre_init(void)
 {
 }
