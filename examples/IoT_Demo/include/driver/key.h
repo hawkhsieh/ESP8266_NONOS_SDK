@@ -14,6 +14,8 @@ struct single_key_param {
     os_timer_t key_50ms;
     key_function short_press;
     key_function long_press;
+    key_function press;
+
 };
 
 struct keys_param {

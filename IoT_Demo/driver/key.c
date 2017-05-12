@@ -30,7 +30,7 @@ LOCAL void key_intr_handler(struct keys_param *keys);
  * Returns      : single_key_param - single key parameter, needed by key init
 *******************************************************************************/
 struct single_key_param *ICACHE_FLASH_ATTR
-key_init_single(uint8 gpio_id, uint32 gpio_name, uint8 gpio_func, key_function long_press, key_function short_press)
+key_init_single(uint8 gpio_id, uint32 gpio_name, uint8 gpio_func, key_function long_press, key_function short_press,key_function press)
 {
     struct single_key_param *single_key = (struct single_key_param *)os_zalloc(sizeof(struct single_key_param));
 
@@ -39,6 +39,7 @@ key_init_single(uint8 gpio_id, uint32 gpio_name, uint8 gpio_func, key_function l
     single_key->gpio_func = gpio_func;
     single_key->long_press = long_press;
     single_key->short_press = short_press;
+    single_key->press = press;
 
     return single_key;
 }
@@ -139,6 +140,9 @@ key_intr_handler(struct keys_param *keys)
         if (gpio_status & BIT(keys->single_key[i]->gpio_id)) {
             //disable interrupt
             gpio_pin_intr_state_set(GPIO_ID_PIN(keys->single_key[i]->gpio_id), GPIO_PIN_INTR_DISABLE);
+
+            if( keys->single_key[i]->press )
+                keys->single_key[i]->press();
 
             //clear interrupt status
             GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, gpio_status & BIT(keys->single_key[i]->gpio_id));

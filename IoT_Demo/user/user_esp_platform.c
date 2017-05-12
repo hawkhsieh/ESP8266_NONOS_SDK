@@ -1535,9 +1535,12 @@ doRma(void *timer_arg)
     rotate++;
 }
 
+
 LOCAL void ICACHE_FLASH_ATTR
-reset_short_press(void)
+reset_press(void)
 {
+    ESP_DBG("Press!!\n");
+
     static SwtHandle handlerma;
     if ( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(WPS_IO_NUM)) ) {
         rboot_set_rma('Y');
@@ -1546,6 +1549,13 @@ reset_short_press(void)
         while(0 == GPIO_INPUT_GET(GPIO_ID_PIN(WPS_IO_NUM)));
     }
 
+    ESP_DBG("Do factory reset\n");
+    factory_reset();
+}
+
+LOCAL void ICACHE_FLASH_ATTR
+reset_short_press(void)
+{
     ESP_DBG("Do factory reset\n");
     factory_reset();
 }
@@ -1716,10 +1726,10 @@ user_esp_platform_init(void)
 
 
     single_key[0] = key_init_single(WPS_IO_NUM, WPS_IO_MUX, WPS_IO_FUNC,
-                                    user_wps_key_long_press, user_wps_key_short_press);
+                                    user_wps_key_long_press, user_wps_key_short_press,0);
 
     single_key[1] = key_init_single(RESET_IO_NUM, RESET_IO_MUX, RESET_IO_FUNC,
-                                    reset_long_press, reset_short_press);
+                                    reset_long_press, reset_short_press,reset_press);
     keys.key_num = BTN_NUM;
     keys.single_key = single_key;
     key_init(&keys);
