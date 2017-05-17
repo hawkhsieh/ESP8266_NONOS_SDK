@@ -1642,6 +1642,7 @@ void putout( void )
     GPIO_OUTPUT_SET( IDKTgpio_GREEN , 1 );
 }
 
+LOCAL char g_mac_str[16];
 
 
 #define BTN_NUM            2
@@ -1655,8 +1656,7 @@ LOCAL struct single_key_param *single_key[BTN_NUM];
 *******************************************************************************/
 void ICACHE_FLASH_ATTR
 user_esp_platform_init(void)
-{
-
+{    
 	os_sprintf(iot_version,"%s%d.%d.%dt%d(%s)",VERSION_TYPE,IOT_VERSION_MAJOR,\
 	IOT_VERSION_MINOR,IOT_VERSION_REVISION,device_type,UPGRADE_FALG);
 	os_printf("IOT VERSION = %s\n",iot_version);
@@ -1701,6 +1701,14 @@ user_esp_platform_init(void)
     if ( rma == 'Y' ){
         rboot_set_rma('N');
         os_printf("do test\n");
+
+#define THIRDPARTY_TEST
+#ifdef THIRDPARTY_TEST
+        char errmsg[128];
+        if (rma_test(errmsg)){
+            os_printf("errmsg:%s\n",errmsg);
+        }
+#else
         static SwtHandle handlerma;
         ESP_DBG("Enter RMA,Do self test\n",RESET_IO_NUM);
         SWT_AddTask(&handlerma,doRma,0,500,500,"rma");
@@ -1708,6 +1716,7 @@ user_esp_platform_init(void)
         //之後改成外包測試這邊要去掉，由外包來做上網動作
         wifi_set_opmode(STATION_MODE);
         smartconfig_start(smartconfig_done_rma);
+#endif
         return;
     }
 
