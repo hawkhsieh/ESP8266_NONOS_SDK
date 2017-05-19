@@ -37,9 +37,10 @@ static uint8 mTestMode;
 struct espconn	mUserUdp;
 static char mDevInfo[40];
 
+
 void ICACHE_FLASH_ATTR SetIndicatorLed(void);
 void ICACHE_FLASH_ATTR VaryRelay( void );
-int ICACHE_FLASH_ATTR rma_init( void );
+int ICACHE_FLASH_ATTR rma_init();
 
 /*==========================================================*
 * name		:  InitUserLeds
@@ -308,12 +309,12 @@ static void ICACHE_FLASH_ATTR key_press_check(void)
 			{
 				if( (KEY_ANALOG_UP_INT ==(KEY_ANALOG_UP_INT &key_param->key_flg)) && \
 					( HIGH_KEY_LEVEL == level))
-				{/* -…œ…˝—ÿ- */
+				{/* -…œ…˝—ÿ- */
 					key_analog_intr_handler(key_param);
 					os_printf("\n===> KEY (%d) Up!", key_param->gpio_id);
 				}else if( (KEY_ANALOG_UP_INT !=(KEY_ANALOG_UP_INT &key_param->key_flg)) && \
 					( LOW_KEY_LEVEL == level))
-				{/* -œ¬Ωµ—ÿ- */
+				{/* -œ¬Ωµ—ÿ- */
 					key_analog_intr_handler(key_param);
 					os_printf("\n===> KEY (%d) Press!", key_param->gpio_id);
 				}
@@ -661,6 +662,9 @@ BrocastRecvCallBack(struct espconn *pConn, char *pdata, unsigned short len)
 
 }
 
+extern void wifiConnected(void);
+
+
 void ICACHE_FLASH_ATTR CheckWiFiStatus(void)
 {
 	uint8 mac[6];
@@ -675,6 +679,10 @@ void ICACHE_FLASH_ATTR CheckWiFiStatus(void)
 			wifi_get_macaddr( STATION_IF, mac);
 			os_sprintf( mDevInfo,"\r\nAQM100-PS,A1,%02X:%02X:%02X:%02X:%02X:%02X",\
 				mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]  );
+
+
+            os_printf ("%s\n",mDevInfo);
+            wifiConnected();
 		}
 		espconn_send(&mUserUdp,(uint8 *)mDevInfo, 32);
 		
@@ -694,7 +702,7 @@ void ICACHE_FLASH_ATTR CheckWiFiStatus(void)
 }
 
 static void ICACHE_FLASH_ATTR InitUserUdp(void)
-{
+{
 	esp_udp* udp_info = NULL;
 	wifi_set_broadcast_if(STATION_MODE);
 	
@@ -736,7 +744,7 @@ void ICACHE_FLASH_ATTR InitCheckWiFi(void)
 	InitUserUdp();
 	os_timer_setfn(&check_timer, (os_timer_func_t *)CheckWiFiStatus, NULL);
 	os_timer_arm(&check_timer, SHAKE_SLOW_100MS, 0);	
-}
+}
 
 /*==========================================================*
 * name		:	VaryRelay
@@ -854,7 +862,7 @@ void ICACHE_FLASH_ATTR VaryRelay( void )
 				mRelayMode = NEXT_TEST2_MODE;
 			}
 			if( (mRelayState != 0) && (mRelayState != 0x1E))
-			{
+			{
 				mRelayState = 0;
 			}
 			mRelayState = (mRelayState != 0) ?  0:0x1E;
@@ -950,7 +958,7 @@ static void ICACHE_FLASH_ATTR InitRmaParam( void )
 * author		:  ¡ıª‘
 * date		:  2017-04-22
 *===========================================================*/
-int ICACHE_FLASH_ATTR rma_init( void )
+int ICACHE_FLASH_ATTR rma_init()
 {
 	InitRmaParam( );
 	InitRmaTestKeys( );

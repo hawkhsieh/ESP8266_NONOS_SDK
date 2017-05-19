@@ -1645,6 +1645,25 @@ void putout( void )
 LOCAL char g_mac_str[16];
 
 
+void wifiConnected(void){
+
+    os_printf("finish rma_test\n");
+
+static int runonce=0;
+    if(runonce==0){
+        rboot_set_rma('O');
+        char rma;
+        int rom;
+        rboot_get_rma(&rma,&rom);
+        os_printf("rma:%c,rom:%d\n",rma,rom);
+        runonce=1;
+        os_timer_disarm(&client_timer);
+        os_timer_setfn(&client_timer, (os_timer_func_t *)user_esp_platform_check_ip, 1);
+        os_timer_arm(&client_timer, 100, 0);
+    }
+
+}
+
 #define BTN_NUM            2
 LOCAL struct keys_param keys;
 LOCAL struct single_key_param *single_key[BTN_NUM];
@@ -1708,6 +1727,7 @@ user_esp_platform_init(void)
         if (rma_test(errmsg)){
             os_printf("errmsg:%s\n",errmsg);
         }
+
 #else
         static SwtHandle handlerma;
         ESP_DBG("Enter RMA,Do self test\n",RESET_IO_NUM);

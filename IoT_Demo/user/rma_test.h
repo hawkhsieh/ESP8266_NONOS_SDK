@@ -145,5 +145,6 @@ struct user_key_param{
 	struct single_key_param user_keys[USER_KEYS_NUM];
 };
 
+
 extern int rma_test(char * errmsg);
 
