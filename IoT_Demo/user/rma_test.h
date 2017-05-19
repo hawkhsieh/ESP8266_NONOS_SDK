@@ -1,9 +1,9 @@
 
-//#define  ROUTE_AP_SSID		"Aquamutant/1234"
-//#define  ROUTE_AP_PWD		"AQM19670406"
+#define  ROUTE_AP_SSID		"Aquamutant/1234"
+#define  ROUTE_AP_PWD		"AQM19670406"
 
-#define  ROUTE_AP_SSID		"Extern_HiWiFi"
-#define  ROUTE_AP_PWD		"520520520"
+//#define  ROUTE_AP_SSID		"Extern_HiWiFi"
+//#define  ROUTE_AP_PWD		"520520520"
 
 
 #define  LONG_KEY_TIMER_VALUE1	 100
