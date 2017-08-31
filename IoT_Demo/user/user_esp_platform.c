@@ -1111,7 +1111,7 @@ user_esp_platform_reset_mode(void)
         wifi_set_opmode( STATION_MODE );
         smartconfig_set_type(SC_TYPE_ESPTOUCH);
         smartconfig_start(smartconfig_done);
-        IDKT_SetState(IDKTstate_UPLINK_BLINK_ORANGE);
+        IDKT_SetState(IDKTstate_UPLINK_BLINK_BLUE);
         wifi_state=WifiState_SmartConfig;
         break;
     case WifiState_SmartConfig:
@@ -1318,7 +1318,7 @@ user_esp_platform_dns_check_cb(void *arg)
 LOCAL void ICACHE_FLASH_ATTR
 user_esp_platform_start_dns(struct espconn *pespconn)
 {
-    IDKT_SetState(IDKTstate_UPLINK_FAST_BLINK_ORANGE );
+    IDKT_SetState(IDKTstate_UPLINK_FAST_BLINK_BLUE );
 
     esp_server_ip.addr = 0;
     espconn_gethostbyname(pespconn, ESP_DOMAIN, &esp_server_ip, user_esp_platform_dns_found);
@@ -1457,7 +1457,7 @@ user_wps_status_cb(int status)
     case WPS_CB_ST_TIMEOUT:
     default:
         smartconfig_start(smartconfig_done);
-        IDKT_SetState(IDKTstate_UPLINK_BLINK_ORANGE);
+        IDKT_SetState(IDKTstate_UPLINK_BLINK_BLUE);
         //            wifi_wps_start();
         break;
     }

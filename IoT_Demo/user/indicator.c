@@ -18,25 +18,14 @@ gpioBlink(void *timer_arg)
     IDKTgpio gpio=(IDKTgpio)timer_arg;
     char bit;
 
-    if (IDKTgpio_ORANGE == gpio)
-        read_func(IDKTgpio_RED,&bit,1);
-    else
-        read_func(gpio,&bit,1);
+    read_func(gpio,&bit,1);
 
     if ( bit == IDKTled_On){
         bit=IDKTled_Off;
-        if (IDKTgpio_ORANGE == gpio){
-            write_func(IDKTgpio_RED,&bit,1);
-            write_func(IDKTgpio_GREEN,&bit,1);
-        }else
-            write_func(gpio,&bit,1);
+        write_func(gpio,&bit,1);
     }else{
         bit=IDKTled_On;
-        if (IDKTgpio_ORANGE == gpio){
-            write_func(IDKTgpio_RED,&bit,1);
-            write_func(IDKTgpio_GREEN,&bit,1);
-        }else
-            write_func(gpio,&bit,1);
+        write_func(gpio,&bit,1);
     }
 }
 
@@ -135,29 +124,18 @@ controlSolidLED( int resetState,int gpio ){
     char on=IDKTled_On;
 
     char bit;
-    if (IDKTgpio_ORANGE == gpio)
-        read_func(IDKTgpio_RED,&bit,1);
-    else
-        read_func(gpio,&bit,1);
+    read_func(gpio,&bit,1);
 
 
     if ( resetState ){
         if (bit==IDKTled_Off) return;
         infof("Turn off gpio[%d]\n",gpio);
 
-        if (IDKTgpio_ORANGE == gpio){
-            write_func(IDKTgpio_RED,&off,1);
-            write_func(IDKTgpio_GREEN,&off,1);
-        }else
-            write_func(gpio,&off,1);
+        write_func(gpio,&off,1);
     }
     else{
         infof("Turn on gpio[%d]\n",gpio);
-        if (IDKTgpio_ORANGE == gpio){
-            write_func(IDKTgpio_RED,&on,1);
-            write_func(IDKTgpio_GREEN,&on,1);
-        }else
-            write_func(gpio,&on,1);
+        write_func(gpio,&on,1);
     }
 }
 
@@ -179,18 +157,18 @@ setState( IDKTstate state ,int resetState ){
         controlSolidLED(resetState,IDKTgpio_RED);
     break;
 
-    case IDKTstate_UPLINK_BLINK_ORANGE:
+    case IDKTstate_UPLINK_BLINK_BLUE:
     {
         static SwtHandle handle=SWT_TASK_INITIALIZER;
-        IDKTgpio gpio=IDKTgpio_ORANGE;
-        controlBlinkTask(&handle,gpio,resetState,"B-ORANG");
+        IDKTgpio gpio=IDKTgpio_BLUE;
+        controlBlinkTask(&handle,gpio,resetState,"B-BLUE");
     }
     break;
 
-    case IDKTstate_UPLINK_FAST_BLINK_ORANGE:
+    case IDKTstate_UPLINK_FAST_BLINK_BLUE:
     {
         static SwtHandle handle=SWT_TASK_INITIALIZER;
-        controlFastBlinkTask(&handle,IDKTgpio_ORANGE,resetState,"FB-ORAN");
+        controlFastBlinkTask(&handle,IDKTgpio_BLUE,resetState,"FB-BLUE");
     }
     break;
 
@@ -212,8 +190,8 @@ setState( IDKTstate state ,int resetState ){
         controlSolidLED(resetState,IDKTgpio_GREEN);
     break;
 
-    case IDKTstate_WARNING_AUTO_SOLID_ORANGE:
-        controlSolidLED(resetState,IDKTgpio_ORANGE);
+    case IDKTstate_WARNING_AUTO_SOLID_BLUE:
+        controlSolidLED(resetState,IDKTgpio_BLUE);
     break;
 
     case IDKTstate_MANUAL_ALLOFF:
