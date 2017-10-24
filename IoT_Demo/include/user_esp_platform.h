@@ -4,8 +4,8 @@
 /* NOTICE---this is for 512KB spi flash.
  * you can change to other sector if you use other size spi flash. */
 #define ESP_PARAM_START_SEC		0x3D
-#define CONFIG_ADDR 0xcc
-#define UARTKEY_ADDR 0xce
+#define CONFIG_ADDR 0xc2
+#define UARTKEY_ADDR 0xc3
 
 #define packet_size   (2 * 1024)
 
