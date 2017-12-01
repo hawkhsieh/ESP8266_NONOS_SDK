@@ -1541,7 +1541,7 @@ reset_press(void)
 {
     ESP_DBG("Press!!\n");
 
-    static SwtHandle handlerma;
+    static SwtHandle handlerma=SWT_TASK_INITIALIZER;
     if ( 0 == GPIO_INPUT_GET(GPIO_ID_PIN(WPS_IO_NUM)) ) {
         rboot_set_rma('Y');
         ESP_DBG("Enter RMA,Do self test\n",RESET_IO_NUM);
@@ -1664,6 +1664,13 @@ static int runonce=0;
 
 }
 
+void ICACHE_FLASH_ATTR
+needOTA(void){
+    os_printf("need ota!!!!!!!\n");
+    rboot_set_rma('O');
+    system_restart_delay();
+}
+
 #define BTN_NUM            2
 LOCAL struct keys_param keys;
 LOCAL struct single_key_param *single_key[BTN_NUM];
@@ -1711,7 +1718,7 @@ user_esp_platform_init(void)
     GPIO_OUTPUT_SET( GPIO_ID_PIN(15),0);
 
     gpio16_output_conf();
-    gpio16_output_set(0);
+    gpio16_output_set(1);
 
     Init_SWT();
     char rma;
@@ -1724,7 +1731,7 @@ user_esp_platform_init(void)
 #define THIRDPARTY_TEST
 #ifdef THIRDPARTY_TEST
         char errmsg[128];
-        if (rma_test(errmsg)){
+        if (rma_test(errmsg,needOTA)){
             os_printf("errmsg:%s\n",errmsg);
         }
 

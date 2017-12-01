@@ -1,13 +1,18 @@
 
+#ifndef __RMA_TEST_H_
+#define __RMA_TEST_H_
+
 #define  ROUTE_AP_SSID		"Aquamutant"
 #define  ROUTE_AP_PWD		"12345678"
+
+//#define  ROUTE_AP_SSID		"Aquamutant/1234"
+//#define  ROUTE_AP_PWD		"AQM19670406"
 
 //#define  ROUTE_AP_SSID		"Extern_HiWiFi"
 //#define  ROUTE_AP_PWD		"520520520"
 
-
-#define  LONG_KEY_TIMER_VALUE1	 100
-#define  LONG_KEY_TIMER_VALUE2	 500
+#define  LONG_KEY_TIMER_VALUE1	 2000
+#define  LONG_KEY_TIMER_VALUE2	 1000
 #define  SHORT_KEY_TIMER_VALUE	 50
 
 #define  LOW_KEY_LEVEL		0
@@ -31,18 +36,25 @@
 #define INDICATOR_LED_OFF  1
 
 /* -shake led mode - */
-#define 	MODE_IDLE_KEEP			0
-#define 	MODE_GREEN_SOILDON	1  //¬Ãµ∆≥£¡¡
-#define 	MODE_ORANGE_SOILDON	2  //≥»…´µ∆≥£¡¡
-#define 	MODE_RED_SHAKE			3	//∫Ïµ∆…¡À∏
-#define 	MODE_GREEN_SHAKE		4  //¬Ãµ∆…¡À∏
-#define 	MODE_ORANGE_SHAKE	5  //≥»…´µ∆…¡À∏
-
-#define 	MODE_CYCLE_MOVE		6  //R->G->O(Loop 3 times) 
+#define 	MODE_IDLE_KEEP		0
+#define 	MODE_RED_SOILDON		1  //∫Ïµ∆≥£¡¡
+#define 	MODE_GREEN_SOILDON	2  //¬Ãµ∆≥£¡¡
+#define 	MODE_ORANGE_SOILDON	3  //≥»…´µ∆≥£¡¡
+#define 	MODE_RED_SHAKE		4  //∫Ïµ∆…¡À∏
+#define 	MODE_GREEN_SHAKE		5  //¬Ãµ∆…¡À∏
+#define 	MODE_ORANGE_SHAKE	6  //≥»…´µ∆…¡À∏
+#define 	MODE_BLUE_SHAKE		7  //¿∂µ∆…¡À∏
+#define 	MODE_CYCLE_MOVE		8  //R->G->O(Loop 3 times) 
 	#define 	SUB_MODE_R			0  //R->G->O(Loop 3 times) 
 	#define 	SUB_MODE_G			1  //R->G->O(Loop 3 times) 
 	#define 	SUB_MODE_O			2  //R->G->O(Loop 3 times) 
-	#define 	SUB_MODE_O_KEEP	3  //R->G->O(Loop 3 times) 
+	#define 	SUB_MODE_O_KEEP		3  //R->G->O(Loop 3 times) 
+
+#define 	MODE_BLUE_SOILDON		9  //¿∂µ∆≥£¡¡
+
+
+
+	
 
 /* -Wifi State- */
 #define	WIFI_STATE_DISCONNECT	0
@@ -60,27 +72,39 @@
 #define	KK2_ON_MODE		2
 #define	KK3_ON_MODE		3
 #define	KK4_ON_MODE		4
-#define	KK1_OFF_MODE	5
-#define	KK2_OFF_MODE	6
-#define	KK3_OFF_MODE	7
-#define	KK4_OFF_MODE	8
-#define	ALL_KKON_MODE	9
+#define	KK1_OFF_MODE		5
+#define	KK2_OFF_MODE		6
+#define	KK3_OFF_MODE		7
+#define	KK4_OFF_MODE		8
+#define	ALL_KKON_MODE		9
 #define	ALL_KKOFF_MODE	10
 
 #define	ALL_KKSHAKE_MODE	11
 #define	NEXT_TEST1_MODE	12
 #define	NEXT_TEST2_MODE	13
 
+#define	PWR_KEY_FAIL_ALL_START	14
+#define	PWR_KEY_FAIL_KK1_4_ON	15
+#define	PWR_KEY_FAIL_KK1_4_OFF	16
+
 
 /* -LED1- */
-#define RED_LED1_IO_MUX 	PERIPHS_IO_MUX_GPIO4_U
-#define RED_LED1_IO_NUM 	4
-#define RED_LED1_IO_FUNC 	FUNC_GPIO4
+#define RED_LED1_IO_MUX 		PERIPHS_IO_MUX_GPIO4_U
+#define RED_LED1_IO_NUM 		4
+#define RED_LED1_IO_FUNC 		FUNC_GPIO4
 
 /* -LED2- */
-#define GREEN_LED2_IO_MUX 	PERIPHS_IO_MUX_GPIO0_U
-#define GREEN_LED2_IO_NUM 	0
+#define GREEN_LED2_IO_MUX 		PERIPHS_IO_MUX_GPIO0_U
+#define GREEN_LED2_IO_NUM 		0
 #define GREEN_LED2_IO_FUNC 	FUNC_GPIO0
+
+/* -LED3- */
+#define BLUE_LED3_IO_MUX 		PERIPHS_IO_MUX_GPIO2_U
+#define BLUE_LED3_IO_NUM 		2
+#define BLUE_LED3_IO_FUNC 		FUNC_GPIO2
+
+
+
 
 #define RELAY_TOTAL_NUM		4
 #define ALL_KK_OFF_INDEX		0
@@ -121,6 +145,8 @@
 #define KK4_RELAY_IO_FUNC  FUNC_GPIO5
 
 typedef void (*key_fn) (void);
+typedef void (* needOTA_fn)(void);
+
 
 /* -KEY FLG- */
 #define	LONG_SHORT_MUTEX			0x01 
@@ -129,15 +155,18 @@ typedef void (*key_fn) (void);
 
 struct single_key_param {
 	uint8 key_flg;
-    uint8 key_level;						
-    uint8 gpio_id;
-    uint8 gpio_func;
-    uint32 gpio_name;
+	uint8 key_level;						
+	uint8 gpio_id;
+	uint8 gpio_func;
+	uint32 gpio_name;
 	uint32 long_time;
-    os_timer_t key_timer;
+	uint32 acc_long_time;
+	
+	os_timer_t key_timer;
 	key_fn start_fun;
 	key_fn short_fun;
 	key_fn long_fun;
+	key_fn long_long_fun;
 };
 
 struct user_key_param{
@@ -145,6 +174,6 @@ struct user_key_param{
 	struct single_key_param user_keys[USER_KEYS_NUM];
 };
 
+extern int rma_test( char *errmsg, void (* needOTA_fn)(void));
 
-extern int rma_test(char * errmsg);
-
+#endif
