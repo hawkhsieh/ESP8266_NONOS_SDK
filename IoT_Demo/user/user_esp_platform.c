@@ -103,6 +103,7 @@ LOCAL uint32 active_nonce = 0;
 LOCAL uint8 iot_version[20] = {0};
 struct rst_info rtc_info;
 void user_esp_platform_check_ip(uint8 reset_flag);
+LOCAL os_timer_t boot_fail_timer;
 
 
 void system_restart_delay(){
@@ -1106,6 +1107,7 @@ user_esp_platform_reset_mode(void)
     switch(wifi_state){
 
     case WifiState_SmartConfigIdle:
+        os_timer_disarm(&boot_fail_timer);
         //只要沒連上AP，就開啟smartconfig
         ESP_DBG("wifi_state=WifiState_SmartConfigIdle\n");
         wifi_set_opmode( STATION_MODE );
@@ -1349,7 +1351,13 @@ espconn_mdns_init(info);
 }
 #endif
 
-
+void ICACHE_FLASH_ATTR
+boot_failed_alarm_func(uint8 reset_flag)
+{
+    ESP_DBG("Time's up tuen on RED light\n");
+    IDKT_SetState(IDKTstate_BOOTUP_SOLID_RED);
+    os_timer_disarm(&boot_fail_timer);
+}
 
 /******************************************************************************
  * FunctionName : user_esp_platform_check_ip
@@ -1456,6 +1464,7 @@ user_wps_status_cb(int status)
     case WPS_CB_ST_FAILED:
     case WPS_CB_ST_TIMEOUT:
     default:
+        os_timer_disarm(&boot_fail_timer);
         smartconfig_start(smartconfig_done);
         IDKT_SetState(IDKTstate_UPLINK_BLINK_BLUE);
         //            wifi_wps_start();
@@ -1748,7 +1757,10 @@ user_esp_platform_init(void)
     }
 
     IDKT_Init( write_gpio , read_gpio , putout );
-    IDKT_SetState(IDKTstate_BOOTUP_SOLID_RED);
+
+    os_timer_disarm(&boot_fail_timer);
+    os_timer_setfn(&boot_fail_timer, (os_timer_func_t *)boot_failed_alarm_func, 1);
+    os_timer_arm(&boot_fail_timer, 10000, 0);
 
     wifi_set_opmode(STATION_MODE);
 

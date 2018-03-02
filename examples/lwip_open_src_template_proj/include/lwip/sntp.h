@@ -30,7 +30,7 @@ extern "C" {
 uint32 sntp_get_current_timestamp();
 char* sntp_get_real_time(long t);
 
-void sntp_init(void);
+void sntp_init(void (*cb)());
 void sntp_stop(void);
 
 sint8 sntp_get_timezone(void);
