@@ -44,7 +44,7 @@ static os_timer_t key_check_timer;
 
 static uint8 mTestMode;
 struct espconn	mUserUdp;
-static char mDevInfo[40];
+static char mDevInfo[256];
 
 static needOTA_fn needOTA_Work = NULL;
 
@@ -924,11 +924,12 @@ void ICACHE_FLASH_ATTR CheckWiFiStatus(void)
 			mLedMode =	MODE_GREEN_SHAKE;
 			SetIndicatorLed();
 			wifi_get_macaddr( STATION_IF, mac);
+            bzero(mDevInfo,sizeof(mDevInfo));
             os_sprintf( mDevInfo,"\r\nAQM100-PS,A1,%02X:%02X:%02X:%02X:%02X:%02X,%s-%s",\
                 mac[0],mac[1],mac[2],mac[3],mac[4],mac[5] , TAG_VERSION ,HASH_VERSION);
 			InitUserUdp();
 		}
-		espconn_send(&mUserUdp,(uint8 *)mDevInfo, 32);
+        espconn_send(&mUserUdp,(uint8 *)mDevInfo, sizeof(mDevInfo));
 		
 		os_timer_setfn(&check_timer, (os_timer_func_t *)CheckWiFiStatus, NULL);
 		os_timer_arm(&check_timer, SHAKE_SLOW_1S, 0);	
