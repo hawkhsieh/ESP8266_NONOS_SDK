@@ -25,6 +25,7 @@ History		: 		2017-11-10 ----> ver0.0.4 by Αυ»Τ
 #include "gpio.h"
 #include "gpio16.h"
 #include "rma_test.h"
+#include "version.h"
 
 static struct user_key_param mUsrKeysInfo;
 static uint8 mRelayState;
@@ -923,8 +924,8 @@ void ICACHE_FLASH_ATTR CheckWiFiStatus(void)
 			mLedMode =	MODE_GREEN_SHAKE;
 			SetIndicatorLed();
 			wifi_get_macaddr( STATION_IF, mac);
-			os_sprintf( mDevInfo,"\r\nAQM100-PS,A1,%02X:%02X:%02X:%02X:%02X:%02X",\
-				mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]  );
+            os_sprintf( mDevInfo,"\r\nAQM100-PS,A1,%02X:%02X:%02X:%02X:%02X:%02X,%s-%s",\
+                mac[0],mac[1],mac[2],mac[3],mac[4],mac[5] , TAG_VERSION ,HASH_VERSION);
 			InitUserUdp();
 		}
 		espconn_send(&mUserUdp,(uint8 *)mDevInfo, 32);

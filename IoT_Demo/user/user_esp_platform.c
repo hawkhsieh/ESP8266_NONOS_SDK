@@ -26,6 +26,7 @@
 #include "swt.h"
 #include "indicator.h"
 #include "gpio16.h"
+#include "version.h"
 
 #define SMARTCONFIG
 #if ESP_PLATFORM
@@ -1375,7 +1376,7 @@ user_esp_platform_check_ip(uint8 reset_flag)
 
     rboot_get_rma(&rma,&last_rom);
 
-    ESP_DBG("ROM=%d,RMA=%c\n",last_rom,rma);
+    ESP_DBG("ROM=%d,RMA=%c,version=%s-%s\n",last_rom,rma, TAG_VERSION ,HASH_VERSION);
 
     //ESP_DBG("reset_flag=%d\n",reset_flag);
     os_timer_disarm(&client_timer);
@@ -1765,7 +1766,7 @@ user_esp_platform_init(void)
     wifi_set_opmode(STATION_MODE);
 
     ESP_DBG("wifi_get_opmode=%d\n", wifi_get_opmode());
-
+    ESP_DBG("version:%s-%s\n",TAG_VERSION ,HASH_VERSION);
     if (wifi_get_opmode() != SOFTAP_MODE) {
         os_timer_disarm(&client_timer);
         os_timer_setfn(&client_timer, (os_timer_func_t *)user_esp_platform_check_ip, 1);
