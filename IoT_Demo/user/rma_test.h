@@ -52,9 +52,9 @@
 
 #define 	MODE_BLUE_SOILDON		9  //¿∂µ∆≥£¡¡
 
-
-
-	
+/* -UDP CMD- */
+#define	UDP_INFO_ACK			1
+#define	UDP_ACTION_CMD			2
 
 /* -Wifi State- */
 #define	WIFI_STATE_DISCONNECT	0
@@ -86,6 +86,22 @@
 #define	PWR_KEY_FAIL_ALL_START	14
 #define	PWR_KEY_FAIL_KK1_4_ON	15
 #define	PWR_KEY_FAIL_KK1_4_OFF	16
+
+#define	ADC_CHECK_0P25V			17
+#define	ADC_CHECK_0P75V_START	18
+#define	ADC_CHECK_0P75V_OVER	28
+
+
+
+#define	KK2_KK3_OFF_MODE1		29
+#define	KK2_KK3_ON_MODE1		30
+#define	KK2_KK3_OFF_MODE2		31
+#define	KK2_KK3_ON_MODE2		32
+#define	KK2_KK3_OFF_MODE3		33
+#define	KK2_KK3_ON_MODE3		34
+#define	KK_ALL_OFF_MODE4		35
+
+
 
 
 /* -LED1- */

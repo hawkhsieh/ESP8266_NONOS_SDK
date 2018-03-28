@@ -16,6 +16,19 @@ History		: 		2017-11-10 ----> ver0.0.4 by 刘辉
 							K4 --> 翻转开关控制电平，
 							进入OTA模式的蓝灯闪烁改为蓝灯常亮。
 
+					2018-03-07 ----> ver0.0.6 by 刘辉
+
+						备注:
+							1、加入UDP广播后，收到ACK（0x01+mac(8bytes)）后停止广播；
+							2、加入响应指令（0x02+mac(8bytes)）后,Relay2和Relay3间隔0.5s闪3次.
+
+					2018-03-27 ----> ver0.0.7 by 刘辉
+
+						备注:
+							1、加入测试阶段不主动发送UDP消息;
+							2、加入ADC检测口输入特殊信号后，发送UDP信息。
+					
+
 \****************************************************************************/
 #include "user_interface.h"
 #include "osapi.h"
@@ -52,6 +65,7 @@ void ICACHE_FLASH_ATTR SetIndicatorLed(void);
 void ICACHE_FLASH_ATTR VaryRelay( void );
 int ICACHE_FLASH_ATTR rma_init( void );
 void ICACHE_FLASH_ATTR InitCheckWiFi(void * fun_cb);
+void ICACHE_FLASH_ATTR CheckWiFiStatus(void);
 
 /*==========================================================*
 * name		:  InitUserLeds
@@ -860,18 +874,82 @@ static void ICACHE_FLASH_ATTR CtrlRelayDriver(uint8 index,uint8 state)
 }
 
 /*==========================================================*
+* name			:	RespondFunCB
+* param 		:	arg
+* return		:	none
+* fuction		:  响应UDP指令
+* author		:	刘辉
+* date			:	2018-03-07
+*===========================================================*/
+static void ICACHE_FLASH_ATTR RespondFunCB(void) 
+{
+	os_timer_disarm(&check_timer);
+
+	if( mRelayMode < KK_ALL_OFF_MODE4)
+	
+{
+		if( (KK2_KK3_OFF_MODE1 == mRelayMode) ||
+			(KK2_KK3_OFF_MODE2 == mRelayMode) ||
+			(KK2_KK3_OFF_MODE3 == mRelayMode) )
+		{
+			mRelayState = 0x00;
+		}else{
+			mRelayState = 0x0C;
+		}
+		
+		//CtrlRelayDriver( KK1_INDEX, mRelayState);
+		CtrlRelayDriver( KK2_INDEX, mRelayState);
+		CtrlRelayDriver( KK3_INDEX, mRelayState);
+		//CtrlRelayDriver( KK4_INDEX, mRelayState);
+
+		os_timer_setfn(&check_timer, (os_timer_func_t *)RespondFunCB, NULL);
+		os_timer_arm(&check_timer, SHAKE_SLOW_500MS, 0);
+	}else{
+		mRelayState = 0x00;	
+		CtrlRelayDriver( KK1_INDEX, mRelayState);
+		CtrlRelayDriver( KK2_INDEX, mRelayState);
+		CtrlRelayDriver( KK3_INDEX, mRelayState);
+		CtrlRelayDriver( KK4_INDEX, mRelayState);
+
+		mRelayMode = ADC_CHECK_0P25V;
+		os_timer_setfn(&check_timer, (os_timer_func_t *)CheckWiFiStatus, NULL);
+		os_timer_arm(&check_timer, SHAKE_SLOW_100MS, 0);	
+	}
+	mRelayMode++;
+}
+
+/*==========================================================*
 * name		:	BrocastRecvCallBack
 * param 		:	arg
 * return		:	none
 * fuction		:  	UDP广播接收占位函数
 * author		:	刘辉
 * date		:	2017-04-22
+
+*modify		: 2018-03-07
+			 1、加入UDP广播后，收到ACK（0x01+mac(8bytes)）后停止广播；
+			 2、加入响应指令（0x02+mac(8bytes)）后,Relay2和Relay3间隔0.5s闪3次.
+
 *===========================================================*/
 static void ICACHE_FLASH_ATTR 
 BrocastRecvCallBack(struct espconn *pConn, char *pdata, unsigned short len) 
 {
+	uint8 mac[6];
 
+	os_printf("\n===>BrocastRecvCallBack ");
+	if( len < 7) return;
+	wifi_get_macaddr( STATION_IF, mac);
+	if( 0 != memcmp(&pdata[1], mac,6)) return;
+	if( UDP_INFO_ACK == pdata[0])
+	{
+		os_timer_disarm(&check_timer);
+	}else if( UDP_ACTION_CMD == pdata[0] ){
+		mRelayMode = KK2_KK3_OFF_MODE1;
+		os_timer_disarm(&check_timer);
 
+		os_timer_setfn(&check_timer, (os_timer_func_t *)RespondFunCB, NULL);
+		os_timer_arm(&check_timer, SHAKE_SLOW_500MS, 0);
+	}
 }
 
 /*==========================================================*
@@ -911,10 +989,15 @@ static void ICACHE_FLASH_ATTR InitUserUdp(void)
 * fuction		:  	检查WiFi连接状态
 * author		:	刘辉
 * date		:	2017-04-22
+
+*modify		: 2018-03-27
+				1、加入识别特定输入信号后主动发送UDP信息
+
 *===========================================================*/
 void ICACHE_FLASH_ATTR CheckWiFiStatus(void)
 {
 	uint8 mac[6];
+	uint16 temp;
 	os_timer_disarm(&check_timer);
 	if( STATION_GOT_IP == wifi_station_get_connect_status())
 	{
@@ -929,10 +1012,45 @@ void ICACHE_FLASH_ATTR CheckWiFiStatus(void)
                 mac[0],mac[1],mac[2],mac[3],mac[4],mac[5] , TAG_VERSION ,HASH_VERSION);
 			InitUserUdp();
 		}
-        espconn_send(&mUserUdp,(uint8 *)mDevInfo, sizeof(mDevInfo));
+		//
+
+		/* -check ADC- */
+		temp = system_adc_read();
+		os_printf("\n system_adc_read- %d!",temp);
 		
+
+#define   ADC_0P125V_LEVEL	128	//0.125
+#define   ADC_0P375V_LEVEL	384	//0.375
+#define   ADC_0P625V_LEVEL	640	//0.625
+#define   ADC_0P875V_LEVEL	896	//0.875
+
+		if( (ADC_CHECK_0P25V < mRelayMode) && (mRelayMode < ADC_CHECK_0P75V_OVER) ){
+			
+			if( (temp > ADC_0P625V_LEVEL) && (temp < ADC_0P875V_LEVEL))
+			{
+				os_printf("\n==>Get 0.75V -->Prepare to send UDP");
+				espconn_send(&mUserUdp,(uint8 *)mDevInfo, 32);
+				mRelayMode = KK2_KK3_OFF_MODE1;
+				
+				os_timer_disarm(&check_timer);
+				
+				os_timer_setfn(&check_timer, (os_timer_func_t *)RespondFunCB, NULL);
+				os_timer_arm(&check_timer, SHAKE_SLOW_500MS, 0);
+				return;
+			}else{
+				mRelayMode++; // 1s超时时间
+			}
+		}else{
+			mRelayMode = ADC_CHECK_0P25V;
+			if( (temp > ADC_0P125V_LEVEL) && (temp < ADC_0P375V_LEVEL))
+			{
+				os_printf("\n==>Get 0.25V -->next check");
+				mRelayMode = ADC_CHECK_0P75V_START;
+			}
+		}
+
 		os_timer_setfn(&check_timer, (os_timer_func_t *)CheckWiFiStatus, NULL);
-		os_timer_arm(&check_timer, SHAKE_SLOW_1S, 0);	
+		os_timer_arm(&check_timer, SHAKE_SLOW_100MS, 0);	
 	}else{
 
 		if( mWifiState != WIFI_STATE_DISCONNECT)
@@ -1250,14 +1368,14 @@ int ICACHE_FLASH_ATTR rma_init( void )
 	InitRmaTestKeys( );
 	InitUserLeds( );
 	InitRelayIO(mRelayState);
-    	return 0; //success
+    return 0; //success
 }
 
 /*==========================================================*
 * name		:  rma_test
 * param		:  errmsg
 * return		:  0 -success. -1 - fail (see errmsg)
-* fuction		:  智能排插测试计划
+* fuction	:  智能排插测试计划
 * author		:  刘辉
 * date		:  2017-04-22
 
@@ -1271,7 +1389,7 @@ int ICACHE_FLASH_ATTR rma_test( char *errmsg, void (* needOTA_fn)(void))
 	//InitUserKeys( );
 	wifi_station_disconnect();
 	
-	os_printf("\n===>Enter rma test mode!");
+	os_printf("\n===>Enter rma test mode (Ver 0.0.6)!");
 
 	rma_init( );
 	needOTA_Work = needOTA_fn;
