@@ -27,6 +27,11 @@ History		: 		2017-11-10 ----> ver0.0.4 by 刘辉
 						备注:
 							1、加入测试阶段不主动发送UDP消息;
 							2、加入ADC检测口输入特殊信号后，发送UDP信息。
+
+					2018-04-19 ----> ver0.0.8 by 刘辉
+
+						备注:
+							1、修正WiFi测试阶段，连接成功后，无法重新再次进入测试问题;
 					
 
 \****************************************************************************/
@@ -58,6 +63,7 @@ static os_timer_t key_check_timer;
 static uint8 mTestMode;
 struct espconn	mUserUdp;
 static char mDevInfo[256];
+static uint8 mUDPFlowSt;
 
 static needOTA_fn needOTA_Work = NULL;
 
@@ -234,6 +240,9 @@ static void ICACHE_FLASH_ATTR CheckBothKeys(void)
 static void ICACHE_FLASH_ATTR TestSystemMode1(void)
 {
 	if( mTestMode != IDLE_TEST_MODE) return;
+
+	os_timer_disarm(&check_timer);
+
 	mTestMode =	TEST_1_MODE;
 	os_printf("\n===>start test 1!");
 
@@ -291,6 +300,8 @@ static void ICACHE_FLASH_ATTR TestSystemMode2(void)
 	if( mTestMode !=  IDLE_TEST_MODE) return;
 	mTestMode =	TEST_2_MODE;
 	os_printf("\n===>start power key test!");
+
+	os_timer_disarm(&check_timer);
 
 	/* -绿灯常亮- */
 	//mLedMode =	MODE_GREEN_SOILDON;
@@ -885,18 +896,19 @@ static void ICACHE_FLASH_ATTR RespondFunCB(void)
 {
 	os_timer_disarm(&check_timer);
 
-	if( mRelayMode < KK_ALL_OFF_MODE4)
+	if( mUDPFlowSt < KK_ALL_OFF_MODE4)
 	
 {
-		if( (KK2_KK3_OFF_MODE1 == mRelayMode) ||
-			(KK2_KK3_OFF_MODE2 == mRelayMode) ||
-			(KK2_KK3_OFF_MODE3 == mRelayMode) )
+		if( (KK2_KK3_OFF_MODE1 == mUDPFlowSt) ||
+			(KK2_KK3_OFF_MODE2 == mUDPFlowSt) ||
+			(KK2_KK3_OFF_MODE3 == mUDPFlowSt) )
 		{
 			mRelayState = 0x00;
 		}else{
 			mRelayState = 0x0C;
 		}
 		
+		mUDPFlowSt++;
 		//CtrlRelayDriver( KK1_INDEX, mRelayState);
 		CtrlRelayDriver( KK2_INDEX, mRelayState);
 		CtrlRelayDriver( KK3_INDEX, mRelayState);
@@ -905,17 +917,16 @@ static void ICACHE_FLASH_ATTR RespondFunCB(void)
 		os_timer_setfn(&check_timer, (os_timer_func_t *)RespondFunCB, NULL);
 		os_timer_arm(&check_timer, SHAKE_SLOW_500MS, 0);
 	}else{
+		mUDPFlowSt = ADC_CHECK_0P25V;
 		mRelayState = 0x00;	
 		CtrlRelayDriver( KK1_INDEX, mRelayState);
 		CtrlRelayDriver( KK2_INDEX, mRelayState);
 		CtrlRelayDriver( KK3_INDEX, mRelayState);
 		CtrlRelayDriver( KK4_INDEX, mRelayState);
 
-		mRelayMode = ADC_CHECK_0P25V;
 		os_timer_setfn(&check_timer, (os_timer_func_t *)CheckWiFiStatus, NULL);
 		os_timer_arm(&check_timer, SHAKE_SLOW_100MS, 0);	
 	}
-	mRelayMode++;
 }
 
 /*==========================================================*
@@ -1024,13 +1035,13 @@ void ICACHE_FLASH_ATTR CheckWiFiStatus(void)
 #define   ADC_0P625V_LEVEL	640	//0.625
 #define   ADC_0P875V_LEVEL	896	//0.875
 
-		if( (ADC_CHECK_0P25V < mRelayMode) && (mRelayMode < ADC_CHECK_0P75V_OVER) ){
+		if( (ADC_CHECK_0P25V < mUDPFlowSt) && (mUDPFlowSt < ADC_CHECK_0P75V_OVER) ){
 			
 			if( (temp > ADC_0P625V_LEVEL) && (temp < ADC_0P875V_LEVEL))
 			{
 				os_printf("\n==>Get 0.75V -->Prepare to send UDP");
 				espconn_send(&mUserUdp,(uint8 *)mDevInfo, 32);
-				mRelayMode = KK2_KK3_OFF_MODE1;
+				mUDPFlowSt = KK2_KK3_OFF_MODE1;
 				
 				os_timer_disarm(&check_timer);
 				
@@ -1038,19 +1049,19 @@ void ICACHE_FLASH_ATTR CheckWiFiStatus(void)
 				os_timer_arm(&check_timer, SHAKE_SLOW_500MS, 0);
 				return;
 			}else{
-				mRelayMode++; // 1s超时时间
+				mUDPFlowSt++; // 1s超时时间
 			}
 		}else{
-			mRelayMode = ADC_CHECK_0P25V;
+			mUDPFlowSt = ADC_CHECK_0P25V;
 			if( (temp > ADC_0P125V_LEVEL) && (temp < ADC_0P375V_LEVEL))
 			{
 				os_printf("\n==>Get 0.25V -->next check");
-				mRelayMode = ADC_CHECK_0P75V_START;
+				mUDPFlowSt = ADC_CHECK_0P75V_START;
 			}
 		}
 
 		os_timer_setfn(&check_timer, (os_timer_func_t *)CheckWiFiStatus, NULL);
-		os_timer_arm(&check_timer, SHAKE_SLOW_100MS, 0);	
+		os_timer_arm(&check_timer, SHAKE_SLOW_100MS, 0);
 	}else{
 
 		if( mWifiState != WIFI_STATE_DISCONNECT)
@@ -1091,7 +1102,8 @@ void ICACHE_FLASH_ATTR InitCheckWiFi(void * fun_cb)
 	wifi_station_set_config(&config);
 	
 	mWifiState = WIFI_STATE_DISCONNECT;
-	//mLedMode =	MODE_RED_SHAKE;
+	mUDPFlowSt = ADC_CHECK_0P25V;
+	
 	//SetIndicatorLed();
 	
 	wifi_station_connect();
@@ -1389,7 +1401,7 @@ int ICACHE_FLASH_ATTR rma_test( char *errmsg, void (* needOTA_fn)(void))
 	//InitUserKeys( );
 	wifi_station_disconnect();
 	
-	os_printf("\n===>Enter rma test mode (Ver 0.0.6)!");
+	os_printf("\n===>Enter rma test mode (Ver 0.0.8)!");
 
 	rma_init( );
 	needOTA_Work = needOTA_fn;
