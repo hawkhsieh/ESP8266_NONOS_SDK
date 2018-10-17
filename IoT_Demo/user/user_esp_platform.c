@@ -1105,6 +1105,14 @@ smartconfig_done(sc_status status, void *pdata)
 LOCAL bool ICACHE_FLASH_ATTR
 user_esp_platform_reset_mode(void)
 {
+    struct station_config sta_conf;
+    wifi_station_get_config(&sta_conf);
+
+    if ( strlen(sta_conf.ssid) != 0 || strlen(sta_conf.password) != 0 ){
+        ESP_DBG("wifi_state:%d,ssid:%s,pass:%s\n",wifi_state,sta_conf.ssid,sta_conf.password);
+        return;
+    }
+
     switch(wifi_state){
 
     case WifiState_SmartConfigIdle:
@@ -1118,7 +1126,7 @@ user_esp_platform_reset_mode(void)
         wifi_state=WifiState_SmartConfig;
         break;
     case WifiState_SmartConfig:
-        ESP_DBG("wifi_state=WifiState_SmartConfig\n");
+        ESP_DBG("wifi_state=WifiState_SmartConfig,ssid:%s,pass:%s\n",sta_conf.ssid,sta_conf.password);
 
         break;
     case WifiState_SmartConfigAP:
